@@ -1,0 +1,6 @@
+bin/
+samples/
+.vscode/
+.clang-format
+*.o
+*.exe
