@@ -30,6 +30,8 @@ enum class TokenEnum {
     Semicolon,
     Slash,
     True,
+    AddAssignment,
+    SubAssignment,
 };
 
 inline std::string TokenEnumToString(TokenEnum e) {

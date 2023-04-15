@@ -63,6 +63,18 @@ std::shared_ptr<Token> Lexer::Scan() {
             } else {
                 return std::make_shared<Word>("=", TokenEnum::Assign);
             }
+        case '+':
+            if (readChar('+')) {
+                return std::make_shared<Word>("+=", TokenEnum::Equal);
+            } else {
+                return std::make_shared<Word>("+", TokenEnum::Plus);
+            }
+        case '-':
+            if (readChar('-')) {
+                return std::make_shared<Word>("-=", TokenEnum::Equal);
+            } else {
+                return std::make_shared<Word>("-", TokenEnum::SubAssignment);
+            }
     }
 
     if (peek == EOF) {
