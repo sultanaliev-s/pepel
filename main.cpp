@@ -4,16 +4,17 @@
 #include <string>
 
 #include "lexer/Lexer.hpp"
+#include "parser/Parser.hpp"
+#include "parser/Set.hpp"
 
 int main() {
-    Lexer lexer("samples/example.txt");
-    for (auto t = lexer.Scan();; t = lexer.Scan()) {
-        std::cout << t->ToString() << " ";
+    std::string filePath = "samples/main.txt";
+    std::cout << filePath << std::endl;
+    auto lexer = std::make_shared<Lexer>(filePath);
+    Parser parser(lexer);
+    auto res = parser.Parse();
 
-        if (t->Type == TokenEnum::EndOfFile) {
-            break;
-        }
-    }
+    std::cout << res->ToString() << std::endl;
 
     return 0;
 }

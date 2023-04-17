@@ -22,14 +22,16 @@ class Lexer {
    private:
     int peek;
     std::ifstream fStream;
-    std::map<std::string, Token> keywords;
+    std::shared_ptr<Token> lastToken;
 
    public:
     Lexer(std::string filePath);
     std::shared_ptr<Token> Scan();
 
    private:
+    std::shared_ptr<Token> scan();
     bool readChar(int ch);
     void readChar();
     int charToInt(char x);
+    bool requiresSemicolon();
 };

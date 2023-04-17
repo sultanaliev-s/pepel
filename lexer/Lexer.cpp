@@ -1,19 +1,26 @@
 #include "Lexer.hpp"
 
-Lexer::Lexer(std::string filePath) {
+Lexer::Lexer(std::string filePath) : Line(0), peek(' '), lastToken(nullptr) {
     Line = 0;
     peek = ' ';
     fStream = std::ifstream(filePath);
     fStream >> std::noskipws;
-    keywords = std::map<std::string, Token>();
 }
 
 std::shared_ptr<Token> Lexer::Scan() {
-    for (readChar();; readChar()) {
+    lastToken = scan();
+    return lastToken;
+}
+
+std::shared_ptr<Token> Lexer::scan() {
+    for (;; readChar()) {
         if (peek == ' ' || peek == '\t') {
             continue;
         } else if (peek == '\n') {
             Line++;
+            if (requiresSemicolon()) {
+                return std::make_shared<Token>(TokenEnum::Semicolon);
+            }
         } else {
             break;
         }
@@ -50,37 +57,63 @@ std::shared_ptr<Token> Lexer::Scan() {
         return std::make_shared<Word>(lexeme, TokenEnum::ID);
     }
 
-    switch (peek) {
-        case '|':
-            if (readChar('|')) {
-                return std::make_shared<Word>("||", TokenEnum::Or);
-            } else {
-                return std::make_shared<Word>("|", TokenEnum::Pipe);
-            }
-        case '=':
-            if (readChar('=')) {
-                return std::make_shared<Word>("==", TokenEnum::Equal);
-            } else {
-                return std::make_shared<Word>("=", TokenEnum::Assign);
-            }
-        case '+':
-            if (readChar('+')) {
-                return std::make_shared<Word>("+=", TokenEnum::Equal);
-            } else {
-                return std::make_shared<Word>("+", TokenEnum::Plus);
-            }
-        case '-':
-            if (readChar('-')) {
-                return std::make_shared<Word>("-=", TokenEnum::Equal);
-            } else {
-                return std::make_shared<Word>("-", TokenEnum::SubAssignment);
-            }
+    auto cur = peek;
+    readChar();
+    switch (cur) {
+    case '|':
+        if (peek == '|') {
+            return std::make_shared<Word>("||", TokenEnum::Or);
+        } else {
+            return std::make_shared<Word>("|", TokenEnum::Pipe);
+        }
+    case '=':
+        if (peek == ('=')) {
+            return std::make_shared<Word>("==", TokenEnum::Equal);
+        } else {
+            return std::make_shared<Word>("=", TokenEnum::Assign);
+        }
+    case '+':
+        if (peek == ('+')) {
+            return std::make_shared<Word>("+=", TokenEnum::AddAssignment);
+        } else {
+            return std::make_shared<Word>("+", TokenEnum::Plus);
+        }
+    case '-':
+        if (peek == ('-')) {
+            return std::make_shared<Word>("-=", TokenEnum::SubAssignment);
+        } else {
+            return std::make_shared<Word>("-", TokenEnum::Minus);
+        }
+    case '*':
+        if (peek == ('*')) {
+            return std::make_shared<Word>("*=", TokenEnum::MulAssignment);
+        } else {
+            return std::make_shared<Word>("*", TokenEnum::Asterisk);
+        }
+    case '/':
+        if (peek == ('/')) {
+            return std::make_shared<Word>("/=", TokenEnum::DivAssignment);
+        } else {
+            return std::make_shared<Word>("/", TokenEnum::Slash);
+        }
+    case '(':
+        return std::make_shared<Word>("(", TokenEnum::LParen);
+    case ')':
+        return std::make_shared<Word>(")", TokenEnum::RParen);
+    case '{':
+        return std::make_shared<Word>("{", TokenEnum::LBrace);
+    case '}':
+        return std::make_shared<Word>("}", TokenEnum::RBrace);
+    case '[':
+        return std::make_shared<Word>("[", TokenEnum::LBracket);
+    case ']':
+        return std::make_shared<Word>("]", TokenEnum::RBracket);
     }
 
-    if (peek == EOF) {
+    if (cur == EOF) {
         return std::make_shared<Token>(TokenEnum::EndOfFile);
     }
-
+    std::cout << "ERROR UNDEFINED: " << peek << std::endl;
     return std::make_shared<Token>(TokenEnum::NOTDEFINED);
 }
 
@@ -105,4 +138,20 @@ void Lexer::readChar() {
 
 int Lexer::charToInt(char x) {
     return x - '0';
+}
+
+bool Lexer::requiresSemicolon() {
+    if (lastToken == nullptr) {
+        return false;
+    }
+    switch (lastToken->Type) {
+    case TokenEnum::ID:
+    case TokenEnum::Num:
+    case TokenEnum::Real:
+    case TokenEnum::RParen:
+    case TokenEnum::RBrace:
+        return true;
+    default:
+        return false;
+    }
 }
