@@ -12,4 +12,7 @@ class Set : public Statement {
     Set(std::shared_ptr<Token> id, std::unique_ptr<Expression> expression)
         : Id(id), Expr(std::move(expression)) {
     }
+
+    llvm::Value* codegen() override {
+    }
 };

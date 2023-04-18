@@ -4,4 +4,5 @@ samples/
 .clang-format
 *.o
 *.exe
+*.a
 main
