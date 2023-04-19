@@ -13,8 +13,6 @@ class Set : public Statement {
         : Id(id), Expr(std::move(expression)) {
     }
 
-    llvm::Value* codegen() override {
-    }
     llvm::Value* Accept(NodeVisitor* visitor) override {
         return visitor->Visit(this);
     }

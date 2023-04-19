@@ -17,9 +17,8 @@ CodegenNodeVisitor::CodegenNodeVisitor() {
 }
 
 llvm::Value *CodegenNodeVisitor::Visit(Program *node) {
-    for (auto i = node->Statements.begin(), end = node->Statements.end();
-         i != end; i++) {
-        i->get()->Accept(this);
+    for (auto const &i : node->Statements) {
+        i->Accept(this);
     }
 
     return nullptr;
@@ -43,8 +42,8 @@ llvm::Value *CodegenNodeVisitor::Visit(Id *node) {
 }
 
 llvm::Value *CodegenNodeVisitor::Visit(Arithmetic *node) {
-    llvm::Value *L = node->Accept(this);
-    llvm::Value *R = node->Accept(this);
+    llvm::Value *L = node->Left->Accept(this);
+    llvm::Value *R = node->Right->Accept(this);
     if (!L || !R) {
         return nullptr;
     }
@@ -90,7 +89,7 @@ llvm::Value *CodegenNodeVisitor::Visit(VariableDeclaration *node) {
     NamedValues.insert({node->Id->Lexeme, variable});
 
     if (node->Expr != nullptr) {
-        llvm::Value *initialValue = node->Accept(this);
+        llvm::Value *initialValue = node->Expr->Accept(this);
         Builder->CreateStore(initialValue, variable);
     }
 
@@ -114,11 +113,13 @@ llvm::Value *CodegenNodeVisitor::logError(std::string msg) {
 }
 
 int CodegenNodeVisitor::Compile(Program *prog) {
+    prog->Accept(this);
+
     auto alloca = NamedValues.find("z")->second;
     auto ret = Builder->CreateLoad(alloca->getAllocatedType(), alloca, "z");
     Builder->CreateRet(ret);
+
     TheModule->print(llvm::errs(), nullptr);
-    prog->Accept(this);
 
     llvm::InitializeAllTargetInfos();
     llvm::InitializeAllTargets();
@@ -145,7 +146,7 @@ int CodegenNodeVisitor::Compile(Program *prog) {
 
     TheModule->setDataLayout(TheTargetMachine->createDataLayout());
 
-    std::string Filename = "main";
+    std::string Filename = "myprog";
     std::string ObjectFilename = Filename + ".o";
     std::error_code EC;
     llvm::raw_fd_ostream dest(ObjectFilename, EC, llvm::sys::fs::OF_None);
@@ -167,8 +168,8 @@ int CodegenNodeVisitor::Compile(Program *prog) {
     dest.flush();
 
     std::string binaryFilename = Filename + ".a";
-    std::string cmd =
-        "clang++ -no-pie  " + ObjectFilename + " -o " + binaryFilename;
+    std::string cmd = "clang++ -no-pie  " + ObjectFilename + " -o " +
+                      binaryFilename + " && rm " + ObjectFilename;
     std::system(cmd.c_str());
 
     llvm::outs() << "\nWrote " << binaryFilename << "\n";

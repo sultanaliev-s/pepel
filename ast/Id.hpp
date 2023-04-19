@@ -9,8 +9,7 @@ class Id : public Expression {
     Id(std::shared_ptr<Token> token) : Tok(std::move(token)) {
     }
 
-    llvm::Value* codegen() override;
-    llvm::Value* Accept(NodeVisitor* visitor) override{
+    llvm::Value* Accept(NodeVisitor* visitor) override {
         return visitor->Visit(this);
     }
 

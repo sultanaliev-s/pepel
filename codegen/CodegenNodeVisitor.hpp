@@ -2,6 +2,15 @@
 #include <iostream>
 #include <map>
 
+#include "../ast/Arithmetic.hpp"
+#include "../ast/Constant.hpp"
+#include "../ast/Id.hpp"
+#include "../ast/Node.hpp"
+#include "../ast/Operation.hpp"
+#include "../ast/Program.hpp"
+#include "../ast/Set.hpp"
+#include "../ast/Unary.hpp"
+#include "../ast/VariableDeclaration.hpp"
 #include "../lexer/RealNum.hpp"
 #include "NodeVisitor.hpp"
 #include "llvm/ADT/APFloat.h"

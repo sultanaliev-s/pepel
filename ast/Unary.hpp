@@ -9,8 +9,7 @@ class Unary : public Operation {
         : Operation(op), Expr(std::move(expr)) {
     }
 
-    llvm::Value* codegen() override{};
-    llvm::Value* Accept(NodeVisitor* visitor) override{
+    llvm::Value* Accept(NodeVisitor* visitor) override {
         return visitor->Visit(this);
     }
 

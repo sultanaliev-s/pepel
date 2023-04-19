@@ -11,7 +11,6 @@ class Arithmetic : public Operation {
         : Operation(op), Left(std::move(left)), Right(std::move(right)) {
     }
 
-    llvm::Value* codegen() override;
     llvm::Value* Accept(NodeVisitor* visitor) override {
         return visitor->Visit(this);
     }

@@ -10,9 +10,8 @@ class Constant : public Expression {
     Constant(std::shared_ptr<Token> token) : Tok(std::move(token)) {
     }
 
-    llvm::Value* codegen() override;
     llvm::Value* Accept(NodeVisitor* visitor) override {
-        visitor->Visit(this);
+        return visitor->Visit(this);
     }
 
     std::string ToString() override {

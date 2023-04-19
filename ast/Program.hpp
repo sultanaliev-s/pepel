@@ -10,8 +10,6 @@ class Program : public Node {
     Program() : Statements(0) {
     }
 
-    llvm::Value* codegen() override {
-    }
     llvm::Value* Accept(NodeVisitor* visitor) override {
         return visitor->Visit(this);
     }

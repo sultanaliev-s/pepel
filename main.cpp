@@ -15,7 +15,6 @@ int main() {
     auto program = parser.Parse();
 
     CodegenNodeVisitor codegen;
-
     codegen.Compile(program.get());
 
     std::cout << program->ToString() << std::endl;

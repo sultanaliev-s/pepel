@@ -5,4 +5,5 @@ samples/
 *.o
 *.exe
 *.a
+*.d
 main

@@ -1,14 +1,16 @@
 #pragma once
-
-#include "../ast/Arithmetic.hpp"
-#include "../ast/Constant.hpp"
-#include "../ast/Id.hpp"
-#include "../ast/Operation.hpp"
-#include "../ast/Program.hpp"
-#include "../ast/Set.hpp"
-#include "../ast/Unary.hpp"
-#include "../ast/VariableDeclaration.hpp"
 #include "llvm/IR/Value.h"
+
+class Program;
+class Statement;
+class Expression;
+class Id;
+class Arithmetic;
+class Operation;
+class Set;
+class VariableDeclaration;
+class Constant;
+class Unary;
 
 class NodeVisitor {
    public:

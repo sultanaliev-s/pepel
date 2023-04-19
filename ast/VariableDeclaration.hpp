@@ -14,7 +14,6 @@ class VariableDeclaration : public Statement {
         : Type(type), Id(id), Expr(std::move(expr)) {
     }
 
-    llvm::Value* codegen() override;
     llvm::Value* Accept(NodeVisitor* visitor) override {
         return visitor->Visit(this);
     }
