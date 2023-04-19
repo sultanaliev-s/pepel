@@ -12,6 +12,9 @@ class Arithmetic : public Operation {
     }
 
     llvm::Value* codegen() override;
+    llvm::Value* Accept(NodeVisitor* visitor) override {
+        return visitor->Visit(this);
+    }
 
     std::string ToString() override {
         return "(" + Left->ToString() + Op->ToString() + Right->ToString() +

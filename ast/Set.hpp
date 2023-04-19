@@ -15,4 +15,7 @@ class Set : public Statement {
 
     llvm::Value* codegen() override {
     }
+    llvm::Value* Accept(NodeVisitor* visitor) override {
+        return visitor->Visit(this);
+    }
 };

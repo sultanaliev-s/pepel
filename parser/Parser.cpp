@@ -215,16 +215,16 @@ std::unique_ptr<Program> Parser::program() {
     auto prog = std::make_unique<Program>();
     while (curToken->Type != TokenEnum::EndOfFile) {
         auto stmt = statement();
-        stmt->codegen();
+        // stmt->codegen();
         prog->Statements.push_back(std::move(stmt));
     }
     // auto ret = llvm::ConstantInt::get(Builder->getInt32Ty(), 0);
-    auto alloca = NamedValues.find("z")->second;
-    auto ret = Builder->CreateLoad(alloca->getAllocatedType(), alloca, "z");
-    Builder->CreateRet(ret);
-    TheModule->print(llvm::errs(), nullptr);
+    // auto alloca = NamedValues.find("z")->second;
+    // auto ret = Builder->CreateLoad(alloca->getAllocatedType(), alloca, "z");
+    // Builder->CreateRet(ret);
+    // TheModule->print(llvm::errs(), nullptr);
 
-    compile();
+    // compile();
     return std::move(prog);
 }
 

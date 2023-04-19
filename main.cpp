@@ -3,6 +3,7 @@
 #include <iostream>
 #include <string>
 
+#include "codegen/CodegenNodeVisitor.hpp"
 #include "lexer/Lexer.hpp"
 #include "parser/Parser.hpp"
 
@@ -11,9 +12,13 @@ int main() {
     std::cout << filePath << std::endl;
     auto lexer = std::make_shared<Lexer>(filePath);
     Parser parser(lexer);
-    auto res = parser.Parse();
+    auto program = parser.Parse();
 
-    std::cout << res->ToString() << std::endl;
+    CodegenNodeVisitor codegen;
+
+    codegen.Compile(program.get());
+
+    std::cout << program->ToString() << std::endl;
 
     return 0;
 }

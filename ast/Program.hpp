@@ -12,6 +12,9 @@ class Program : public Node {
 
     llvm::Value* codegen() override {
     }
+    llvm::Value* Accept(NodeVisitor* visitor) override {
+        return visitor->Visit(this);
+    }
 
     std::string ToString() override;
 };

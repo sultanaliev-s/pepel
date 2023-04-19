@@ -10,6 +10,9 @@ class Unary : public Operation {
     }
 
     llvm::Value* codegen() override{};
+    llvm::Value* Accept(NodeVisitor* visitor) override{
+        return visitor->Visit(this);
+    }
 
     std::string ToString() override {
         return "(" + Op->ToString() + Expr->ToString() + ")";

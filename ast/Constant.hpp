@@ -11,6 +11,9 @@ class Constant : public Expression {
     }
 
     llvm::Value* codegen() override;
+    llvm::Value* Accept(NodeVisitor* visitor) override {
+        visitor->Visit(this);
+    }
 
     std::string ToString() override {
         return Tok->ToString();

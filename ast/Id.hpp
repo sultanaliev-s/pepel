@@ -10,6 +10,9 @@ class Id : public Expression {
     }
 
     llvm::Value* codegen() override;
+    llvm::Value* Accept(NodeVisitor* visitor) override{
+        return visitor->Visit(this);
+    }
 
     std::string ToString() override {
         return Tok->ToString();
