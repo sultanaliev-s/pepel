@@ -1,7 +1,6 @@
 #pragma once
 #include <vector>
 
-#include "Node.hpp"
 #include "Statement.hpp"
 
 class Program : public Node {

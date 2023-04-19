@@ -5,7 +5,6 @@
 
 #include "lexer/Lexer.hpp"
 #include "parser/Parser.hpp"
-#include "parser/Set.hpp"
 
 int main() {
     std::string filePath = "samples/main.txt";

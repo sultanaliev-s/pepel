@@ -3,10 +3,10 @@
 #include <memory>
 #include <string>
 
+#include "../ast/Expression.hpp"
+#include "../ast/Program.hpp"
+#include "../ast/Set.hpp"
 #include "../lexer/Lexer.hpp"
-#include "Expression.hpp"
-#include "Program.hpp"
-#include "Set.hpp"
 
 class Parser {
    public:

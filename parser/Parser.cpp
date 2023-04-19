@@ -2,6 +2,12 @@
 
 #include <iostream>
 
+#include "../ast/Arithmetic.hpp"
+#include "../ast/Constant.hpp"
+#include "../ast/Id.hpp"
+#include "../ast/Operation.hpp"
+#include "../ast/Unary.hpp"
+#include "../ast/VariableDeclaration.hpp"
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/Optional.h"
 #include "llvm/ADT/STLExtras.h"
@@ -103,160 +109,69 @@ void error(std::string message) {
     std::abort();
 }
 
-class VariableDeclaration : public Statement {
-   public:
-    std::shared_ptr<Word> Type;
-    std::shared_ptr<Word> Id;
-    std::unique_ptr<Expression> Expr;
-
-    VariableDeclaration(std::shared_ptr<Word> type, std::shared_ptr<Word> id,
-        std::unique_ptr<Expression> expr)
-        : Type(type), Id(id), Expr(std::move(expr)) {
+llvm::Value* VariableDeclaration::codegen() {
+    llvm::Type* variableType;
+    if (Type->Lexeme == "int") {
+        variableType = llvm::Type::getInt32Ty(*TheContext);
+    } else if (Type->Lexeme == "float") {
+        variableType = llvm::Type::getFloatTy(*TheContext);
+    } else {
+        error("unsupported type");
     }
 
-    llvm::Value* codegen() override {
-        llvm::Type* variableType;
-        if (Type->Lexeme == "int") {
-            variableType = llvm::Type::getInt32Ty(*TheContext);
-        } else if (Type->Lexeme == "float") {
-            variableType = llvm::Type::getFloatTy(*TheContext);
-        } else {
-            error("unsupported type");
-        }
+    llvm::AllocaInst* variable =
+        Builder->CreateAlloca(variableType, nullptr, Id->Lexeme);
+    NamedValues.insert({Id->Lexeme, variable});
 
-        llvm::AllocaInst* variable =
-            Builder->CreateAlloca(variableType, nullptr, Id->Lexeme);
-        NamedValues.insert({Id->Lexeme, variable});
-
-        if (Expr != nullptr) {
-            llvm::Value* initialValue = Expr->codegen();
-            Builder->CreateStore(initialValue, variable);
-        }
-
-        return variable;
+    if (Expr != nullptr) {
+        llvm::Value* initialValue = Expr->codegen();
+        Builder->CreateStore(initialValue, variable);
     }
 
-    std::string ToString() override {
-        return "VarDecl{" + Type->ToString() + " " + Id->ToString() +
-               Expr->ToString() + "}";
+    return variable;
+}
+
+llvm::Value* Constant::codegen() {
+    if (Tok->Type == TokenEnum::Num) {
+        auto num = std::static_pointer_cast<Number>(Tok);
+        return llvm::ConstantInt::get(
+            *TheContext, llvm::APInt(32, num->Value, true));
+    } else {
+        auto real = std::static_pointer_cast<RealNum>(Tok);
+        return llvm::ConstantFP::get(*TheContext, llvm::APFloat(real->Value));
     }
-};
+}
 
-class Constant : public Expression {
-   public:
-    std::shared_ptr<Token> Tok;
-
-    Constant(std::shared_ptr<Token> token) : Tok(std::move(token)) {
+llvm::Value* Id::codegen() {
+    auto var = std::static_pointer_cast<Word>(Tok);
+    if (NamedValues.count(var->Lexeme) == 0) {
+        error("Unknown variable name" + var->Lexeme);
     }
+    llvm::AllocaInst* alloca = NamedValues.find(var->Lexeme)->second;
+    return Builder->CreateLoad(alloca->getAllocatedType(), alloca, var->Lexeme);
+}
 
-    llvm::Value* codegen() override {
-        if (Tok->Type == TokenEnum::Num) {
-            auto num = std::static_pointer_cast<Number>(Tok);
-            return llvm::ConstantInt::get(
-                *TheContext, llvm::APInt(32, num->Value, true));
-        } else {
-            auto real = std::static_pointer_cast<RealNum>(Tok);
-            return llvm::ConstantFP::get(
-                *TheContext, llvm::APFloat(real->Value));
-        }
-    }
-
-    std::string ToString() override {
-        return Tok->ToString();
-    }
-};
-
-class Id : public Expression {
-   public:
-    std::shared_ptr<Token> Tok;
-
-    Id(std::shared_ptr<Token> token) : Tok(std::move(token)) {
+llvm::Value* Arithmetic::codegen() {
+    llvm::Value* L = Left->codegen();
+    llvm::Value* R = Right->codegen();
+    if (!L || !R) {
+        return nullptr;
     }
 
-    llvm::Value* codegen() override {
-        auto var = std::static_pointer_cast<Word>(Tok);
-        if (NamedValues.count(var->Lexeme) == 0) {
-            error("Unknown variable name" + var->Lexeme);
-        }
-        llvm::AllocaInst* alloca = NamedValues.find(var->Lexeme)->second;
-        return Builder->CreateLoad(alloca->getType(), alloca, var->Lexeme);
+    switch (Op->Type) {
+    case TokenEnum::Plus:
+        return Builder->CreateAdd(L, R, "addtmp");
+    case TokenEnum::Minus:
+        return Builder->CreateSub(L, R, "subtmp");
+    case TokenEnum::Asterisk:
+        return Builder->CreateMul(L, R, "multmp");
+    case TokenEnum::Slash:
+        return Builder->CreateExactSDiv(L, R, "divtmp");
+    default:
+        error("invalid binary operator");
+        return nullptr;
     }
-
-    std::string ToString() override {
-        return Tok->ToString();
-    }
-};
-
-class Operation : public Expression {
-   public:
-    std::shared_ptr<Token> Op;
-
-    Operation(std::shared_ptr<Token> op) : Op(op) {
-    }
-
-    llvm::Value* codegen() override {
-        std::cout << "Gen op" << std::endl;
-    }
-
-    std::string ToString() override {
-        return Op->ToString();
-    }
-};
-
-class Arithmetic : public Operation {
-   public:
-    std::unique_ptr<Expression> Left;
-    std::unique_ptr<Expression> Right;
-
-    Arithmetic(std::shared_ptr<Token> op, std::unique_ptr<Expression> left,
-        std::unique_ptr<Expression> right)
-        : Operation(op), Left(std::move(left)), Right(std::move(right)) {
-    }
-
-    llvm::Value* codegen() override {
-        llvm::Value* L = Left->codegen();
-        llvm::Value* R = Right->codegen();
-        if (!L || !R) {
-            return nullptr;
-        }
-
-        switch (Op->Type) {
-        case TokenEnum::Plus:
-            return Builder->CreateAdd(L, R, "addtmp");
-        case TokenEnum::Minus:
-            return Builder->CreateSub(L, R, "subtmp");
-        case TokenEnum::Asterisk:
-            return Builder->CreateMul(L, R, "multmp");
-        case TokenEnum::Slash:
-            return Builder->CreateExactSDiv(L, R, "divtmp");
-        default:
-            error("invalid binary operator");
-            return nullptr;
-        }
-    }
-
-    std::string ToString() override {
-        return "(" + Left->ToString() + Op->ToString() + Right->ToString() +
-               ")";
-    }
-};
-
-class Unary : public Operation {
-   public:
-    std::unique_ptr<Expression> Expr;
-
-    Unary(std::shared_ptr<Token> op, std::unique_ptr<Expression> expr)
-        : Operation(op), Expr(std::move(expr)) {
-    }
-
-    llvm::Value* codegen() override {
-        std::cout << "Gen unary" << std::endl;
-    }
-
-    std::string ToString() override {
-        return "(" + Op->ToString() + Expr->ToString() + ")";
-    }
-};
+}
 
 std::string Program::ToString() {
     std::string str = "Program{\n";
@@ -305,7 +220,7 @@ std::unique_ptr<Program> Parser::program() {
     }
     // auto ret = llvm::ConstantInt::get(Builder->getInt32Ty(), 0);
     auto alloca = NamedValues.find("z")->second;
-    auto ret = Builder->CreateLoad(alloca->getType(), alloca, "z");
+    auto ret = Builder->CreateLoad(alloca->getAllocatedType(), alloca, "z");
     Builder->CreateRet(ret);
     TheModule->print(llvm::errs(), nullptr);
 
