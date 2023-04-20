@@ -19,7 +19,12 @@ class VariableDeclaration : public Statement {
     }
 
     std::string ToString() override {
-        return "VarDecl{" + Type->ToString() + " " + Id->ToString() +
-               Expr->ToString() + "}";
+        std::string expr = "";
+        if (Expr != nullptr) {
+            expr = Expr->ToString();
+        }
+
+        return "VarDecl{" + Type->ToString() + " " + Id->ToString() + expr +
+               "}";
     }
 };

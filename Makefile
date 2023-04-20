@@ -27,4 +27,4 @@ clean:
 
 check:
 	./pepel.a && ./myprog.a
-	@echo $?	
+	@echo $$?	

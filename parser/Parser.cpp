@@ -105,7 +105,7 @@ std::unique_ptr<Statement> Parser::assign() {
                 return std::make_unique<VariableDeclaration>(word, id, nullptr);
             }
         }
-        std::cout << "assign func end" << std::endl;
+        std::cout << "assign func end " + curToken->ToString() << std::endl;
     }
 
     switch (curToken->Type) {

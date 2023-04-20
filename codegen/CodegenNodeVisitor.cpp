@@ -35,7 +35,7 @@ llvm::Value *CodegenNodeVisitor::Visit(Expression *node) {
 llvm::Value *CodegenNodeVisitor::Visit(Id *node) {
     auto var = std::static_pointer_cast<Word>(node->Tok);
     if (NamedValues.count(var->Lexeme) == 0) {
-        return logError("Unknown variable name" + var->Lexeme);
+        return logError("Unknown variable name: " + var->Lexeme);
     }
     llvm::AllocaInst *alloca = NamedValues.find(var->Lexeme)->second;
     return Builder->CreateLoad(alloca->getAllocatedType(), alloca, var->Lexeme);
@@ -91,6 +91,9 @@ llvm::Value *CodegenNodeVisitor::Visit(VariableDeclaration *node) {
     if (node->Expr != nullptr) {
         llvm::Value *initialValue = node->Expr->Accept(this);
         Builder->CreateStore(initialValue, variable);
+    } else {
+        Builder->CreateStore(
+            llvm::Constant::getNullValue(variableType), variable);
     }
 
     return variable;
@@ -99,8 +102,8 @@ llvm::Value *CodegenNodeVisitor::Visit(VariableDeclaration *node) {
 llvm::Value *CodegenNodeVisitor::Visit(Constant *node) {
     if (node->Tok->Type == TokenEnum::Num) {
         auto num = std::static_pointer_cast<Number>(node->Tok);
-        return llvm::ConstantInt::get(
-            *TheContext, llvm::APInt(32, num->Value, true));
+        return llvm::ConstantInt::getSigned(
+            llvm::Type::getInt32Ty(*TheContext), num->Value);
     } else {
         auto real = std::static_pointer_cast<RealNum>(node->Tok);
         return llvm::ConstantFP::get(*TheContext, llvm::APFloat(real->Value));

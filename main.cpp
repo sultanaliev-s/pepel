@@ -13,11 +13,10 @@ int main() {
     auto lexer = std::make_shared<Lexer>(filePath);
     Parser parser(lexer);
     auto program = parser.Parse();
+    std::cout << program->ToString() << std::endl;
 
     CodegenNodeVisitor codegen;
     codegen.Compile(program.get());
-
-    std::cout << program->ToString() << std::endl;
 
     return 0;
 }
