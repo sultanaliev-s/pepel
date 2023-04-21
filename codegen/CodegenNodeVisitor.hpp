@@ -3,8 +3,11 @@
 #include <map>
 
 #include "../ast/Arithmetic.hpp"
+#include "../ast/BlockStmt.hpp"
 #include "../ast/Constant.hpp"
 #include "../ast/Id.hpp"
+#include "../ast/If.hpp"
+#include "../ast/Logical.hpp"
 #include "../ast/Node.hpp"
 #include "../ast/Operation.hpp"
 #include "../ast/Program.hpp"
@@ -49,13 +52,21 @@ class CodegenNodeVisitor : public NodeVisitor {
     llvm::Value *Visit(Statement *node) override;
     llvm::Value *Visit(Expression *node) override;
     llvm::Value *Visit(Id *node) override;
+    llvm::Value *Visit(Logical *node) override;
     llvm::Value *Visit(Arithmetic *node) override;
     llvm::Value *Visit(Operation *node) override;
     llvm::Value *Visit(Set *node) override;
     llvm::Value *Visit(Unary *node) override;
     llvm::Value *Visit(VariableDeclaration *node) override;
     llvm::Value *Visit(Constant *node) override;
+    llvm::Value *Visit(If *node) override;
+    llvm::Value *Visit(BlockStmt *node) override;
 
    private:
     llvm::Value *logError(std::string);
+    llvm::Value *intArithmetic(llvm::Value *l, llvm::Value *r, TokenEnum op);
+    llvm::Value *floatArithmetic(llvm::Value *l, llvm::Value *r, TokenEnum op);
+    llvm::Value *boolLogic(llvm::Value *l, llvm::Value *r, TokenEnum op);
+    llvm::Value *intLogic(llvm::Value *l, llvm::Value *r, TokenEnum op);
+    llvm::Value *floatLogic(llvm::Value *l, llvm::Value *r, TokenEnum op);
 };

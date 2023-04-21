@@ -1,16 +1,19 @@
 #pragma once
 #include "llvm/IR/Value.h"
 
-class Program;
-class Statement;
+class Arithmetic;
+class BlockStmt;
+class Constant;
 class Expression;
 class Id;
-class Arithmetic;
+class If;
+class Logical;
 class Operation;
+class Program;
 class Set;
-class VariableDeclaration;
-class Constant;
+class Statement;
 class Unary;
+class VariableDeclaration;
 
 class NodeVisitor {
    public:
@@ -20,10 +23,13 @@ class NodeVisitor {
     virtual llvm::Value *Visit(Statement *node) = 0;
     virtual llvm::Value *Visit(Expression *node) = 0;
     virtual llvm::Value *Visit(Id *node) = 0;
+    virtual llvm::Value *Visit(Logical *node) = 0;
     virtual llvm::Value *Visit(Arithmetic *node) = 0;
     virtual llvm::Value *Visit(Operation *node) = 0;
     virtual llvm::Value *Visit(Set *node) = 0;
     virtual llvm::Value *Visit(Unary *node) = 0;
     virtual llvm::Value *Visit(VariableDeclaration *node) = 0;
     virtual llvm::Value *Visit(Constant *node) = 0;
+    virtual llvm::Value *Visit(If *node) = 0;
+    virtual llvm::Value *Visit(BlockStmt *node) = 0;
 };

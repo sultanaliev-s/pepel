@@ -41,24 +41,136 @@ llvm::Value *CodegenNodeVisitor::Visit(Id *node) {
     return Builder->CreateLoad(alloca->getAllocatedType(), alloca, var->Lexeme);
 }
 
+llvm::Value *CodegenNodeVisitor::Visit(Logical *node) {
+    llvm::Value *L = node->Left->Accept(this);
+    llvm::Value *R = node->Right->Accept(this);
+    if (!L || !R) {
+        return nullptr;
+    }
+    if (L->getType() != R->getType()) {
+        return logError("Types don't match for " + node->Left->ToString() +
+                        " " + node->Right->ToString());
+    }
+
+    auto type = L->getType();
+
+    if (type == llvm::Type::getInt1Ty(*TheContext)) {
+        return boolLogic(L, R, node->Op->Type);
+    } else if (type == llvm::Type::getInt32Ty(*TheContext)) {
+        return intLogic(L, R, node->Op->Type);
+    } else if (type == llvm::Type::getFloatTy(*TheContext)) {
+        return floatLogic(L, R, node->Op->Type);
+    }
+
+    return logError("Unsupported type for logical");
+}
+
+llvm::Value *CodegenNodeVisitor::boolLogic(
+    llvm::Value *l, llvm::Value *r, TokenEnum op) {
+    switch (op) {
+    case TokenEnum::And:
+        return Builder->CreateAnd(l, r, "andtmp");
+    case TokenEnum::Or:
+        return Builder->CreateOr(l, r, "ortmp");
+    case TokenEnum::Equal:
+        return Builder->CreateICmpEQ(l, r, "eqtmp");
+    case TokenEnum::NotEqual:
+        return Builder->CreateICmpNE(l, r, "neqtmp");
+    default:
+        return logError("Invalid logical operator for boolean");
+    }
+}
+
+llvm::Value *CodegenNodeVisitor::intLogic(
+    llvm::Value *l, llvm::Value *r, TokenEnum op) {
+    switch (op) {
+    case TokenEnum::Greater:
+        return Builder->CreateICmpSGT(l, r, "sgttmp");
+    case TokenEnum::GreaterEqual:
+        return Builder->CreateICmpSGE(l, r, "sgetmp");
+    case TokenEnum::Less:
+        return Builder->CreateICmpSLT(l, r, "slttmp");
+    case TokenEnum::LessEqual:
+        return Builder->CreateICmpSLE(l, r, "sletmp");
+    case TokenEnum::Equal:
+        return Builder->CreateICmpEQ(l, r, "eqtmp");
+    case TokenEnum::NotEqual:
+        return Builder->CreateICmpNE(l, r, "neqtmp");
+    default:
+        return logError("Invalid logical operator for int");
+    }
+}
+
+llvm::Value *CodegenNodeVisitor::floatLogic(
+    llvm::Value *l, llvm::Value *r, TokenEnum op) {
+    switch (op) {
+    case TokenEnum::Greater:
+        return Builder->CreateFCmpOGT(l, r, "sgttmp");
+    case TokenEnum::GreaterEqual:
+        return Builder->CreateFCmpOGE(l, r, "sgetmp");
+    case TokenEnum::Less:
+        return Builder->CreateFCmpOLT(l, r, "slttmp");
+    case TokenEnum::LessEqual:
+        return Builder->CreateFCmpOLE(l, r, "sletmp");
+    case TokenEnum::Equal:
+        return Builder->CreateFCmpOEQ(l, r, "eqtmp");
+    case TokenEnum::NotEqual:
+        return Builder->CreateFCmpONE(l, r, "neqtmp");
+    default:
+        return logError("Invalid logical operator for int");
+    }
+}
+
 llvm::Value *CodegenNodeVisitor::Visit(Arithmetic *node) {
     llvm::Value *L = node->Left->Accept(this);
     llvm::Value *R = node->Right->Accept(this);
     if (!L || !R) {
         return nullptr;
     }
+    if (L->getType() != R->getType()) {
+        return logError("Types don't match");
+    }
 
-    switch (node->Op->Type) {
+    auto type = L->getType();
+
+    if (type == llvm::Type::getInt32Ty(*TheContext)) {
+        return intArithmetic(L, R, node->Op->Type);
+    } else if (type == llvm::Type::getFloatTy(*TheContext)) {
+        return floatArithmetic(L, R, node->Op->Type);
+    }
+
+    return logError("Unsupported type for arithmetics");
+}
+
+llvm::Value *CodegenNodeVisitor::intArithmetic(
+    llvm::Value *l, llvm::Value *r, TokenEnum op) {
+    switch (op) {
     case TokenEnum::Plus:
-        return Builder->CreateAdd(L, R, "addtmp");
+        return Builder->CreateAdd(l, r, "addtmp");
     case TokenEnum::Minus:
-        return Builder->CreateSub(L, R, "subtmp");
+        return Builder->CreateSub(l, r, "subtmp");
     case TokenEnum::Asterisk:
-        return Builder->CreateMul(L, R, "multmp");
+        return Builder->CreateMul(l, r, "multmp");
     case TokenEnum::Slash:
-        return Builder->CreateExactSDiv(L, R, "divtmp");
+        return Builder->CreateExactSDiv(l, r, "divtmp");
     default:
-        return logError("invalid binary operator");
+        return logError("Invalid binary operator");
+    }
+}
+
+llvm::Value *CodegenNodeVisitor::floatArithmetic(
+    llvm::Value *l, llvm::Value *r, TokenEnum op) {
+    switch (op) {
+    case TokenEnum::Plus:
+        return Builder->CreateFAdd(l, r, "addtmp");
+    case TokenEnum::Minus:
+        return Builder->CreateFSub(l, r, "subtmp");
+    case TokenEnum::Asterisk:
+        return Builder->CreateFMul(l, r, "multmp");
+    case TokenEnum::Slash:
+        return Builder->CreateFDiv(l, r, "divtmp");
+    default:
+        return logError("Invalid binary operator");
     }
 }
 
@@ -67,7 +179,19 @@ llvm::Value *CodegenNodeVisitor::Visit(Operation *node) {
 }
 
 llvm::Value *CodegenNodeVisitor::Visit(Set *node) {
-    return logError("Not implemented Set");
+    auto word = std::static_pointer_cast<Word>(node->Id);
+    if (NamedValues.count(word->Lexeme) == 0) {
+        return logError("Unknown variable name: " + word->Lexeme);
+    }
+
+    llvm::AllocaInst *variable = NamedValues.find(word->Lexeme)->second;
+
+    if (node->Expr != nullptr) {
+        llvm::Value *initialValue = node->Expr->Accept(this);
+        Builder->CreateStore(initialValue, variable);
+    }
+
+    return variable;
 }
 
 llvm::Value *CodegenNodeVisitor::Visit(Unary *node) {
@@ -80,8 +204,10 @@ llvm::Value *CodegenNodeVisitor::Visit(VariableDeclaration *node) {
         variableType = llvm::Type::getInt32Ty(*TheContext);
     } else if (node->Type->Lexeme == "float") {
         variableType = llvm::Type::getFloatTy(*TheContext);
+    } else if (node->Type->Lexeme == "bool") {
+        variableType = llvm::Type::getInt1Ty(*TheContext);
     } else {
-        return logError("unsupported type");
+        return logError("Unsupported type for declaration");
     }
 
     llvm::AllocaInst *variable =
@@ -104,10 +230,70 @@ llvm::Value *CodegenNodeVisitor::Visit(Constant *node) {
         auto num = std::static_pointer_cast<Number>(node->Tok);
         return llvm::ConstantInt::getSigned(
             llvm::Type::getInt32Ty(*TheContext), num->Value);
-    } else {
+    } else if (node->Tok->Type == TokenEnum::Real) {
         auto real = std::static_pointer_cast<RealNum>(node->Tok);
-        return llvm::ConstantFP::get(*TheContext, llvm::APFloat(real->Value));
+        return llvm::ConstantFP::get(llvm::Type::getFloatTy(*TheContext),
+            llvm::APFloat((float)real->Value));
+    } else if (node->Tok->Type == TokenEnum::True) {
+        return llvm::ConstantInt::get(llvm::Type::getInt1Ty(*TheContext), 1);
+    } else if (node->Tok->Type == TokenEnum::False) {
+        return llvm::ConstantInt::get(llvm::Type::getInt1Ty(*TheContext), 0);
     }
+
+    return logError("Unsupported constant");
+}
+
+llvm::Value *CodegenNodeVisitor::Visit(If *node) {
+    llvm::Value *cond = node->Condition->Accept(this);
+
+    if (cond->getType() != llvm::Type::getInt1Ty(*TheContext)) {
+        return logError("Condition should be a boolean value");
+    }
+
+    llvm::Function *func = Builder->GetInsertBlock()->getParent();
+
+    llvm::BasicBlock *ifBB = llvm::BasicBlock::Create(*TheContext, "if", func);
+    llvm::BasicBlock *finallyBB =
+        llvm::BasicBlock::Create(*TheContext, "afterIf");
+    llvm::BasicBlock *elseBB;
+
+    if (node->Else != nullptr) {
+        elseBB = llvm::BasicBlock::Create(*TheContext, "else");
+        Builder->CreateCondBr(cond, ifBB, elseBB);
+    } else {
+        Builder->CreateCondBr(cond, ifBB, finallyBB);
+    }
+
+    Builder->SetInsertPoint(ifBB);
+    node->Block->Accept(this);
+
+    Builder->CreateBr(finallyBB);
+    ifBB = Builder->GetInsertBlock();
+
+    if (node->Else != nullptr) {
+        func->getBasicBlockList().push_back(elseBB);
+        Builder->SetInsertPoint(elseBB);
+
+        if (node->Else != nullptr) {
+            node->Else->Accept(this);
+        }
+
+        Builder->CreateBr(finallyBB);
+        elseBB = Builder->GetInsertBlock();
+    }
+
+    func->getBasicBlockList().push_back(finallyBB);
+    Builder->SetInsertPoint(finallyBB);
+
+    return nullptr;
+}
+
+llvm::Value *CodegenNodeVisitor::Visit(BlockStmt *node) {
+    for (auto const &i : node->Statements) {
+        i->Accept(this);
+    }
+
+    return nullptr;
 }
 
 llvm::Value *CodegenNodeVisitor::logError(std::string msg) {

@@ -8,11 +8,12 @@
 #include "parser/Parser.hpp"
 
 int main() {
-    std::string filePath = "samples/main.txt";
+    std::string filePath = "samples/main.ppl";
     std::cout << filePath << std::endl;
     auto lexer = std::make_shared<Lexer>(filePath);
     Parser parser(lexer);
     auto program = parser.Parse();
+    std::cout << "Successfully parsed" << std::endl;
     std::cout << program->ToString() << std::endl;
 
     CodegenNodeVisitor codegen;

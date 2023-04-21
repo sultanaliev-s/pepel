@@ -1,13 +1,14 @@
 #pragma once
 #include <vector>
 
+#include "../codegen/NodeVisitor.hpp"
 #include "Statement.hpp"
 
-class Program : public Node {
+class BlockStmt : public Statement {
    public:
     std::vector<std::unique_ptr<Statement>> Statements;
 
-    Program() : Statements(0) {
+    BlockStmt() : Statements(0) {
     }
 
     llvm::Value* Accept(NodeVisitor* visitor) override {
@@ -15,7 +16,7 @@ class Program : public Node {
     }
 
     std::string ToString() override {
-        std::string str = "Program{\n";
+        std::string str = "Block{\n";
         for (size_t i = 0; i < Statements.size(); i++) {
             str += Statements[i]->ToString() + "\n";
         }
