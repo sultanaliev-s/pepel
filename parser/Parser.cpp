@@ -66,7 +66,8 @@ std::unique_ptr<Statement> Parser::statement() {
     case TokenEnum::For:
         return forStmt();
     case TokenEnum::Break:
-        return breakStmt();
+    case TokenEnum::Continue:
+        return breakOrContinue();
     default:
         return assign();
     }
@@ -136,9 +137,13 @@ std::unique_ptr<Statement> Parser::forStmt() {
         nullptr, expression(), nullptr, blockStmt());
 }
 
-std::unique_ptr<Statement> Parser::breakStmt() {
+std::unique_ptr<Statement> Parser::breakOrContinue() {
+    if (curToken->Type == TokenEnum::Break) {
+        next();
+        return std::make_unique<BreakStmt>();
+    }
     next();
-    return std::make_unique<BreakStmt>();
+    return std::make_unique<ContinueStmt>();
 }
 
 std::unique_ptr<BlockStmt> Parser::blockStmt() {

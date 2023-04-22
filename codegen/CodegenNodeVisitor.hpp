@@ -7,6 +7,7 @@
 #include "../ast/BlockStmt.hpp"
 #include "../ast/BreakStmt.hpp"
 #include "../ast/Constant.hpp"
+#include "../ast/ContinueStmt.hpp"
 #include "../ast/ForStmt.hpp"
 #include "../ast/Id.hpp"
 #include "../ast/If.hpp"
@@ -67,6 +68,7 @@ class CodegenNodeVisitor : public NodeVisitor {
     llvm::Value *Visit(BlockStmt *node) override;
     llvm::Value *Visit(ForStmt *node) override;
     llvm::Value *Visit(BreakStmt *node) override;
+    llvm::Value *Visit(ContinueStmt *node) override;
 
    private:
     llvm::Value *logError(std::string);

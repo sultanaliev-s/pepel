@@ -356,6 +356,10 @@ llvm::Value *CodegenNodeVisitor::Visit(BreakStmt *node) {
     return nullptr;
 }
 
+llvm::Value *CodegenNodeVisitor::Visit(ContinueStmt *node) {
+    return logError("Continue is not supported");
+}
+
 llvm::Value *CodegenNodeVisitor::Visit(BlockStmt *node) {
     for (auto const &i : node->Statements) {
         i->Accept(this);

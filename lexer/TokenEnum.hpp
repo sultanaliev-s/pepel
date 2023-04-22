@@ -50,6 +50,7 @@ enum class TokenEnum {
     If,
     True,
     Break,
+    Continue,
 };
 
 inline std::string TokenEnumToString(TokenEnum e) {
@@ -130,6 +131,8 @@ inline std::string TokenEnumToString(TokenEnum e) {
         return "Function";
     case TokenEnum::Break:
         return "Break";
+    case TokenEnum::Continue:
+        return "Continue";
     case TokenEnum::If:
         return "If";
     case TokenEnum::True:

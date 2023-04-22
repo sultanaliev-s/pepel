@@ -8,6 +8,7 @@
 #include "../ast/BlockStmt.hpp"
 #include "../ast/BreakStmt.hpp"
 #include "../ast/Constant.hpp"
+#include "../ast/ContinueStmt.hpp"
 #include "../ast/Expression.hpp"
 #include "../ast/ForStmt.hpp"
 #include "../ast/Id.hpp"
@@ -43,7 +44,7 @@ class Parser {
     std::unique_ptr<Statement> statement();
     std::unique_ptr<Statement> ifStmt();
     std::unique_ptr<Statement> forStmt();
-    std::unique_ptr<Statement> breakStmt();
+    std::unique_ptr<Statement> breakOrContinue();
     std::unique_ptr<BlockStmt> blockStmt();
     std::unique_ptr<Statement> assign();
     std::unique_ptr<Expression> expression();

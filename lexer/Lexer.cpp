@@ -63,6 +63,8 @@ std::shared_ptr<Token> Lexer::scan() {
             return std::make_shared<Token>(TokenEnum::For);
         } else if (lexeme == "break") {
             return std::make_shared<Token>(TokenEnum::Break);
+        } else if (lexeme == "continue") {
+            return std::make_shared<Token>(TokenEnum::Continue);
         } else if (lexeme == "true") {
             return std::make_shared<Word>(lexeme, TokenEnum::True);
         } else if (lexeme == "false") {
