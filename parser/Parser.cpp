@@ -37,12 +37,23 @@ void Parser::error(std::string message) {
 
 std::unique_ptr<Program> Parser::program() {
     auto prog = std::make_unique<Program>();
-    while (curToken->Type != TokenEnum::EndOfFile) {
-        auto stmt = statement();
-        prog->Statements.push_back(std::move(stmt));
-    }
+    prog->Statements = statements();
 
     return std::move(prog);
+}
+
+std::vector<std::unique_ptr<Statement>> Parser::statements() {
+    std::vector<std::unique_ptr<Statement>> stmts(0);
+    while (curToken->Type != TokenEnum::EndOfFile &&
+           curToken->Type != TokenEnum::RBrace) {
+        auto stmt = statement();
+        if (curToken->Type == TokenEnum::Semicolon) {
+            next();
+        }
+        stmts.push_back(std::move(stmt));
+    }
+
+    return std::move(stmts);
 }
 
 std::unique_ptr<Statement> Parser::statement() {
@@ -64,7 +75,7 @@ std::unique_ptr<Statement> Parser::ifStmt() {
     }
 
     std::unique_ptr<BlockStmt> ifBlock = blockStmt();
-    std::unique_ptr<BlockStmt> elseBlock;
+    std::unique_ptr<Statement> elseBlock;
 
     switch (curToken->Type) {
     case TokenEnum::Semicolon:
@@ -73,8 +84,12 @@ std::unique_ptr<Statement> Parser::ifStmt() {
             std::move(cond), std::move(ifBlock), nullptr);
     case TokenEnum::Else:
         next();
-        elseBlock = blockStmt();
-        match(TokenEnum::Semicolon);
+        if (curToken->Type == TokenEnum::If) {
+            elseBlock = ifStmt();
+        } else {
+            elseBlock = blockStmt();
+            match(TokenEnum::Semicolon);
+        }
         return std::make_unique<If>(
             std::move(cond), std::move(ifBlock), std::move(elseBlock));
     default:
@@ -85,13 +100,11 @@ std::unique_ptr<Statement> Parser::ifStmt() {
 
 std::unique_ptr<BlockStmt> Parser::blockStmt() {
     match(TokenEnum::LBrace);
-    auto block = std::make_unique<BlockStmt>();
-    while (curToken->Type != TokenEnum::RBrace) {
-        auto stmt = statement();
-        block->Statements.push_back(std::move(stmt));
-    }
 
-    next();
+    auto block = std::make_unique<BlockStmt>();
+    block->Statements = statements();
+
+    match(TokenEnum::RBrace);
     return std::move(block);
 }
 
@@ -105,11 +118,9 @@ std::unique_ptr<Statement> Parser::assign() {
             if (curToken->Type == TokenEnum::Assign) {
                 next();
                 auto expr = expression();
-                match(TokenEnum::Semicolon);
                 return std::make_unique<VariableDeclaration>(
                     word, id, std::move(expr));
             } else if (curToken->Type == TokenEnum::Semicolon) {
-                next();
                 return std::make_unique<VariableDeclaration>(word, id, nullptr);
             }
             error("Assing (var declaration) ended " + curToken->ToString());

@@ -36,6 +36,7 @@ class Parser {
     bool match(TokenEnum token);
     void error(std::string message);
     std::unique_ptr<Program> program();
+    std::vector<std::unique_ptr<Statement>> statements();
     std::unique_ptr<Statement> statement();
     std::unique_ptr<Statement> ifStmt();
     std::unique_ptr<BlockStmt> blockStmt();
