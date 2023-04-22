@@ -5,7 +5,9 @@ void error(std::string message) {
     std::abort();
 }
 
-Parser::Parser(std::shared_ptr<Lexer> _lexer) : lexer(_lexer) {
+Parser::Parser(std::shared_ptr<Lexer> _lexer)
+    : lexer(_lexer), curToken(nullptr), nextToken(nullptr) {
+    next();
     next();
     registerBasicTypes();
     registerKeywords();
@@ -16,7 +18,8 @@ std::unique_ptr<Program> Parser::Parse() {
 }
 
 void Parser::next() {
-    curToken = lexer->Scan();
+    curToken = nextToken;
+    nextToken = lexer->Scan();
 }
 
 bool Parser::match(TokenEnum token) {
@@ -60,6 +63,10 @@ std::unique_ptr<Statement> Parser::statement() {
     switch (curToken->Type) {
     case TokenEnum::If:
         return ifStmt();
+    case TokenEnum::For:
+        return forStmt();
+    case TokenEnum::Break:
+        return breakStmt();
     default:
         return assign();
     }
@@ -98,6 +105,42 @@ std::unique_ptr<Statement> Parser::ifStmt() {
     }
 }
 
+std::unique_ptr<Statement> Parser::forStmt() {
+    next();
+    if (curToken->Type == TokenEnum::LBrace) {
+        return std::make_unique<ForStmt>(
+            nullptr, nullptr, nullptr, blockStmt());
+    }
+
+    if (curToken->Type == TokenEnum::ID &&
+        nextToken->Type == TokenEnum::ID) {  // for int i;;{} | for x > 1 {}
+        std::unique_ptr<Statement> init = assign();
+        match(TokenEnum::Semicolon);
+
+        std::unique_ptr<Expression> cond = nullptr;
+        if (curToken->Type != TokenEnum::Semicolon) {
+            cond = expression();
+        }
+        match(TokenEnum::Semicolon);
+
+        std::unique_ptr<Set> post = nullptr;
+        if (curToken->Type != TokenEnum::LBrace) {
+            post = set();
+        }
+
+        return std::make_unique<ForStmt>(
+            std::move(init), std::move(cond), std::move(post), blockStmt());
+    }
+
+    return std::make_unique<ForStmt>(
+        nullptr, expression(), nullptr, blockStmt());
+}
+
+std::unique_ptr<Statement> Parser::breakStmt() {
+    next();
+    return std::make_unique<BreakStmt>();
+}
+
 std::unique_ptr<BlockStmt> Parser::blockStmt() {
     match(TokenEnum::LBrace);
 
@@ -125,17 +168,8 @@ std::unique_ptr<Statement> Parser::assign() {
             }
             error("Assing (var declaration) ended " + curToken->ToString());
             return nullptr;
-        } else {
-            auto id = std::static_pointer_cast<Word>(curToken);
-            next();
-            if (curToken->Type == TokenEnum::Assign) {
-                next();
-                auto expr = expression();
-                match(TokenEnum::Semicolon);
-                return std::make_unique<Set>(id, std::move(expr));
-            }
-            error("Assing (set) ended " + curToken->ToString());
-            return nullptr;
+        } else if (nextToken->Type == TokenEnum::Assign) {
+            return set();
         }
         error("Assign parser end " + curToken->ToString());
         return nullptr;
@@ -150,6 +184,19 @@ std::unique_ptr<Statement> Parser::assign() {
     // default:
     //     break;
     // }
+}
+
+std::unique_ptr<Set> Parser::set() {
+    auto id = std::static_pointer_cast<Word>(curToken);
+    next();
+    if (curToken->Type == TokenEnum::Assign) {
+        next();
+        auto expr = expression();
+        return std::make_unique<Set>(id, std::move(expr));
+    }
+
+    error("Set parser ended " + curToken->ToString());
+    return nullptr;
 }
 
 std::unique_ptr<Expression> Parser::expression() {

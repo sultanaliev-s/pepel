@@ -3,8 +3,10 @@
 
 class Arithmetic;
 class BlockStmt;
+class BreakStmt;
 class Constant;
 class Expression;
+class ForStmt;
 class Id;
 class If;
 class Logical;
@@ -32,4 +34,6 @@ class NodeVisitor {
     virtual llvm::Value *Visit(Constant *node) = 0;
     virtual llvm::Value *Visit(If *node) = 0;
     virtual llvm::Value *Visit(BlockStmt *node) = 0;
+    virtual llvm::Value *Visit(ForStmt *node) = 0;
+    virtual llvm::Value *Visit(BreakStmt *node) = 0;
 };

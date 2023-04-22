@@ -288,6 +288,74 @@ llvm::Value *CodegenNodeVisitor::Visit(If *node) {
     return nullptr;
 }
 
+llvm::Value *CodegenNodeVisitor::Visit(ForStmt *node) {
+    std::cout << "enter for" << std::endl;
+    if (node->Init != nullptr) {
+        llvm::Value *initVal = node->Init->Accept(this);
+    }
+
+    llvm::Function *func = Builder->GetInsertBlock()->getParent();
+    llvm::BasicBlock *condBB;
+    if (node->Cond != nullptr) {
+        condBB = llvm::BasicBlock::Create(*TheContext, "cond", func);
+    }
+    llvm::BasicBlock *loopBB =
+        llvm::BasicBlock::Create(*TheContext, "loop", func);
+    llvm::BasicBlock *afterBB =
+        llvm::BasicBlock::Create(*TheContext, "afterLoop");
+    loopStack.push(afterBB);
+
+    if (node->Cond != nullptr) {
+        Builder->CreateBr(condBB);
+        Builder->SetInsertPoint(condBB);
+        llvm::Value *cond = node->Cond->Accept(this);
+        Builder->CreateCondBr(cond, loopBB, afterBB);
+    } else {
+        Builder->CreateBr(loopBB);
+    }
+
+    Builder->SetInsertPoint(loopBB);
+    node->Block->Accept(this);
+    if (node->Post != nullptr) {
+        node->Post->Accept(this);
+    }
+
+    if (node->Cond != nullptr) {
+        Builder->CreateBr(condBB);
+    } else {
+        Builder->CreateBr(loopBB);
+    }
+    func->getBasicBlockList().push_back(afterBB);
+    Builder->SetInsertPoint(afterBB);
+
+    loopStack.pop();
+    return nullptr;
+}
+
+llvm::Value *CodegenNodeVisitor::Visit(BreakStmt *node) {
+    if (loopStack.empty()) {
+        return logError("No loop to break from");
+    }
+    llvm::Function *func = Builder->GetInsertBlock()->getParent();
+    llvm::BasicBlock *breakBB =
+        llvm::BasicBlock::Create(*TheContext, "break", func);
+    llvm::BasicBlock *restBB =
+        llvm::BasicBlock::Create(*TheContext, "loopContued");
+
+    llvm::Value *cond =
+        llvm::ConstantInt::get(llvm::Type::getInt1Ty(*TheContext), 1);
+    Builder->CreateCondBr(cond, breakBB, restBB);
+
+    Builder->SetInsertPoint(breakBB);
+    Builder->CreateBr(loopStack.top());
+    loopStack.pop();
+
+    func->getBasicBlockList().push_back(restBB);
+    Builder->SetInsertPoint(restBB);
+
+    return nullptr;
+}
+
 llvm::Value *CodegenNodeVisitor::Visit(BlockStmt *node) {
     for (auto const &i : node->Statements) {
         i->Accept(this);

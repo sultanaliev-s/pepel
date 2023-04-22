@@ -1,10 +1,13 @@
 #pragma once
 #include <iostream>
 #include <map>
+#include <stack>
 
 #include "../ast/Arithmetic.hpp"
 #include "../ast/BlockStmt.hpp"
+#include "../ast/BreakStmt.hpp"
 #include "../ast/Constant.hpp"
+#include "../ast/ForStmt.hpp"
 #include "../ast/Id.hpp"
 #include "../ast/If.hpp"
 #include "../ast/Logical.hpp"
@@ -43,6 +46,7 @@ class CodegenNodeVisitor : public NodeVisitor {
     std::unique_ptr<llvm::IRBuilder<>> Builder;
     std::unique_ptr<llvm::Module> TheModule;
     std::map<std::string, llvm::AllocaInst *> NamedValues;
+    std::stack<llvm::BasicBlock *> loopStack;
 
    public:
     CodegenNodeVisitor();
@@ -61,6 +65,8 @@ class CodegenNodeVisitor : public NodeVisitor {
     llvm::Value *Visit(Constant *node) override;
     llvm::Value *Visit(If *node) override;
     llvm::Value *Visit(BlockStmt *node) override;
+    llvm::Value *Visit(ForStmt *node) override;
+    llvm::Value *Visit(BreakStmt *node) override;
 
    private:
     llvm::Value *logError(std::string);

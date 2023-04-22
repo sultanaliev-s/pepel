@@ -6,8 +6,10 @@
 
 #include "../ast/Arithmetic.hpp"
 #include "../ast/BlockStmt.hpp"
+#include "../ast/BreakStmt.hpp"
 #include "../ast/Constant.hpp"
 #include "../ast/Expression.hpp"
+#include "../ast/ForStmt.hpp"
 #include "../ast/Id.hpp"
 #include "../ast/If.hpp"
 #include "../ast/Logical.hpp"
@@ -23,6 +25,7 @@ class Parser {
    private:
     std::shared_ptr<Lexer> lexer;
     std::shared_ptr<Token> curToken;
+    std::shared_ptr<Token> nextToken;
     std::map<std::string, bool> basicTypes;
     std::map<std::string, bool> keywords;
 
@@ -39,6 +42,8 @@ class Parser {
     std::vector<std::unique_ptr<Statement>> statements();
     std::unique_ptr<Statement> statement();
     std::unique_ptr<Statement> ifStmt();
+    std::unique_ptr<Statement> forStmt();
+    std::unique_ptr<Statement> breakStmt();
     std::unique_ptr<BlockStmt> blockStmt();
     std::unique_ptr<Statement> assign();
     std::unique_ptr<Expression> expression();
@@ -49,6 +54,7 @@ class Parser {
     std::unique_ptr<Expression> factor();
     std::unique_ptr<Expression> term();
     std::unique_ptr<Expression> unary();
+    std::unique_ptr<Set> set();
     void registerBasicTypes();
     void registerKeywords();
     bool isBasicType(std::string lexeme);

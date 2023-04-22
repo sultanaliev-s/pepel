@@ -59,6 +59,10 @@ std::shared_ptr<Token> Lexer::scan() {
             return std::make_shared<Token>(TokenEnum::If);
         } else if (lexeme == "else") {
             return std::make_shared<Token>(TokenEnum::Else);
+        } else if (lexeme == "for") {
+            return std::make_shared<Token>(TokenEnum::For);
+        } else if (lexeme == "break") {
+            return std::make_shared<Token>(TokenEnum::Break);
         } else if (lexeme == "true") {
             return std::make_shared<Word>(lexeme, TokenEnum::True);
         } else if (lexeme == "false") {
@@ -199,6 +203,7 @@ bool Lexer::requiresSemicolon() {
     case TokenEnum::False:
     case TokenEnum::RParen:
     case TokenEnum::RBrace:
+    case TokenEnum::Break:
         return true;
     default:
         return false;

@@ -49,6 +49,7 @@ enum class TokenEnum {
     Func,
     If,
     True,
+    Break,
 };
 
 inline std::string TokenEnumToString(TokenEnum e) {
@@ -127,6 +128,8 @@ inline std::string TokenEnumToString(TokenEnum e) {
         return "For";
     case TokenEnum::Func:
         return "Function";
+    case TokenEnum::Break:
+        return "Break";
     case TokenEnum::If:
         return "If";
     case TokenEnum::True:
