@@ -4,6 +4,10 @@ Lexer::Lexer(std::string filePath) : Line(0), peek(' '), lastToken(nullptr) {
     Line = 0;
     peek = ' ';
     fStream = std::ifstream(filePath);
+    if (!fStream.is_open()) {
+        std::cerr << "Failed to open " + filePath << std::endl;
+        abort();
+    }
     fStream >> std::noskipws;
 }
 
@@ -65,6 +69,10 @@ std::shared_ptr<Token> Lexer::scan() {
             return std::make_shared<Token>(TokenEnum::Break);
         } else if (lexeme == "continue") {
             return std::make_shared<Token>(TokenEnum::Continue);
+        } else if (lexeme == "func") {
+            return std::make_shared<Token>(TokenEnum::Func);
+        } else if (lexeme == "return") {
+            return std::make_shared<Token>(TokenEnum::Return);
         } else if (lexeme == "true") {
             return std::make_shared<Word>(lexeme, TokenEnum::True);
         } else if (lexeme == "false") {
@@ -206,6 +214,8 @@ bool Lexer::requiresSemicolon() {
     case TokenEnum::RParen:
     case TokenEnum::RBrace:
     case TokenEnum::Break:
+    case TokenEnum::Return:
+    case TokenEnum::Continue:
         return true;
     default:
         return false;

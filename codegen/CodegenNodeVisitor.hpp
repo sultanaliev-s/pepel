@@ -9,12 +9,14 @@
 #include "../ast/Constant.hpp"
 #include "../ast/ContinueStmt.hpp"
 #include "../ast/ForStmt.hpp"
+#include "../ast/FuncStmt.hpp"
 #include "../ast/Id.hpp"
 #include "../ast/If.hpp"
 #include "../ast/Logical.hpp"
 #include "../ast/Node.hpp"
 #include "../ast/Operation.hpp"
 #include "../ast/Program.hpp"
+#include "../ast/ReturnStmt.hpp"
 #include "../ast/Set.hpp"
 #include "../ast/Unary.hpp"
 #include "../ast/VariableDeclaration.hpp"
@@ -51,7 +53,7 @@ class CodegenNodeVisitor : public NodeVisitor {
 
    public:
     CodegenNodeVisitor();
-    int Compile(Program *prog);
+    int Compile(Program *prog, std::string fileName);
 
     llvm::Value *Visit(Program *node) override;
     llvm::Value *Visit(Statement *node) override;
@@ -69,6 +71,8 @@ class CodegenNodeVisitor : public NodeVisitor {
     llvm::Value *Visit(ForStmt *node) override;
     llvm::Value *Visit(BreakStmt *node) override;
     llvm::Value *Visit(ContinueStmt *node) override;
+    llvm::Value *Visit(FuncStmt *node) override;
+    llvm::Value *Visit(ReturnStmt *node) override;
 
    private:
     llvm::Value *logError(std::string);
@@ -77,4 +81,7 @@ class CodegenNodeVisitor : public NodeVisitor {
     llvm::Value *boolLogic(llvm::Value *l, llvm::Value *r, TokenEnum op);
     llvm::Value *intLogic(llvm::Value *l, llvm::Value *r, TokenEnum op);
     llvm::Value *floatLogic(llvm::Value *l, llvm::Value *r, TokenEnum op);
+    llvm::Type *getBasicType(std::string type);
+    llvm::AllocaInst *createEntryBlockAlloca(
+        llvm::Function *func, llvm::Type *type, const std::string &varName);
 };

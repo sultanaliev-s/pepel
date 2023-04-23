@@ -7,13 +7,13 @@ CodegenNodeVisitor::CodegenNodeVisitor() {
     // Create a new builder for the module.
     Builder = std::make_unique<llvm::IRBuilder<>>(*TheContext);
 
-    auto i32 = Builder->getInt32Ty();
-    auto prototype = llvm::FunctionType::get(i32, false);
-    llvm::Function *main_fn = llvm::Function::Create(
-        prototype, llvm::Function::ExternalLinkage, "main", TheModule.get());
-    llvm::BasicBlock *body =
-        llvm::BasicBlock::Create(*TheContext, "body", main_fn);
-    Builder->SetInsertPoint(body);
+    // auto i32 = Builder->getInt32Ty();
+    // auto prototype = llvm::FunctionType::get(i32, false);
+    // llvm::Function *main_fn = llvm::Function::Create(
+    //     prototype, llvm::Function::ExternalLinkage, "main", TheModule.get());
+    // llvm::BasicBlock *body =
+    //     llvm::BasicBlock::Create(*TheContext, "body", main_fn);
+    // Builder->SetInsertPoint(body);
 }
 
 llvm::Value *CodegenNodeVisitor::Visit(Program *node) {
@@ -360,12 +360,121 @@ llvm::Value *CodegenNodeVisitor::Visit(ContinueStmt *node) {
     return logError("Continue is not supported");
 }
 
+llvm::Value *CodegenNodeVisitor::Visit(FuncStmt *node) {
+    {
+        llvm::Function *f = TheModule->getFunction(node->Name);
+        if (f != nullptr) {
+            return logError("Function cannot be redeclared");
+        }
+    }
+
+    std::vector<llvm::Type *> argTypes;
+    for (auto &type : node->Arguments) {
+        argTypes.push_back(getBasicType(type.first));
+    }
+
+    llvm::Type *returnType;
+    if (node->ReturnType != nullptr) {
+        returnType = getBasicType(*node->ReturnType);
+    } else {
+        returnType = llvm::Type::getVoidTy(*TheContext);
+    }
+
+    llvm::FunctionType *funcType =
+        llvm::FunctionType::get(returnType, argTypes, false);
+
+    llvm::Function *func = llvm::Function::Create(
+        funcType, llvm::Function::ExternalLinkage, node->Name, TheModule.get());
+
+    unsigned i = 0;
+    for (auto &Arg : func->args()) {
+        Arg.setName(node->Arguments[i++].second);
+    }
+
+    llvm::BasicBlock *BB = llvm::BasicBlock::Create(*TheContext, "body", func);
+    Builder->SetInsertPoint(BB);
+
+    for (auto &Arg : func->args()) {
+        llvm::AllocaInst *alloca =
+            createEntryBlockAlloca(func, Arg.getType(), Arg.getName().str());
+
+        Builder->CreateStore(&Arg, alloca);
+
+        NamedValues.insert({Arg.getName().str(), alloca});
+    }
+
+    node->Block->Accept(this);
+
+    if (node->Name == "main") {
+        // auto alloca = NamedValues.find("z")->second;
+        // auto ret = Builder->CreateLoad(alloca->getAllocatedType(), alloca,
+        // "z"); Builder->CreateRet(llvm::Constant::getNullValue(type));
+        llvm::Value *retVal = Builder->getInt32(0);
+        Builder->CreateRet(retVal);
+    } else {
+        Builder->CreateRetVoid();
+    }
+
+    llvm::verifyFunction(*func);
+
+    return func;
+}
+
+llvm::Value *CodegenNodeVisitor::Visit(ReturnStmt *node) {
+    llvm::Function *func = Builder->GetInsertBlock()->getParent();
+    llvm::BasicBlock *retBB =
+        llvm::BasicBlock::Create(*TheContext, "return", func);
+    llvm::BasicBlock *restBB =
+        llvm::BasicBlock::Create(*TheContext, "funcContinued");
+
+    llvm::Value *cond =
+        llvm::ConstantInt::get(llvm::Type::getInt1Ty(*TheContext), 1);
+    Builder->CreateCondBr(cond, retBB, restBB);
+
+    Builder->SetInsertPoint(retBB);
+    if (func->getName() == "main") {
+        llvm::Value *retVal = Builder->getInt32(0);
+        Builder->CreateRet(retVal);
+    } else if (node->Expr == nullptr) {
+        Builder->CreateRetVoid();
+    } else {
+        auto retVal = node->Expr->Accept(this);
+        Builder->CreateRet(retVal);
+    }
+
+    func->getBasicBlockList().push_back(restBB);
+    Builder->SetInsertPoint(restBB);
+
+    return nullptr;
+}
+
+llvm::AllocaInst *CodegenNodeVisitor::createEntryBlockAlloca(
+    llvm::Function *func, llvm::Type *type, const std::string &varName) {
+    llvm::IRBuilder<> TmpB(
+        &func->getEntryBlock(), func->getEntryBlock().begin());
+
+    return TmpB.CreateAlloca(type, llvm::Constant::getNullValue(type), varName);
+}
+
 llvm::Value *CodegenNodeVisitor::Visit(BlockStmt *node) {
     for (auto const &i : node->Statements) {
-        i->Accept(this);
+        llvm::Value *v = i->Accept(this);
     }
 
     return nullptr;
+}
+
+llvm::Type *CodegenNodeVisitor::getBasicType(std::string type) {
+    if (type == "int") {
+        return llvm::Type::getInt32Ty(*TheContext);
+    } else if (type == "float") {
+        return llvm::Type::getFloatTy(*TheContext);
+    } else if (type == "bool") {
+        return llvm::Type::getInt1Ty(*TheContext);
+    } else {
+        logError("Unsupported arg type: " + type);
+        return nullptr;
+    }
 }
 
 llvm::Value *CodegenNodeVisitor::logError(std::string msg) {
@@ -373,12 +482,12 @@ llvm::Value *CodegenNodeVisitor::logError(std::string msg) {
     return nullptr;
 }
 
-int CodegenNodeVisitor::Compile(Program *prog) {
+int CodegenNodeVisitor::Compile(Program *prog, std::string fileName) {
     prog->Accept(this);
 
-    auto alloca = NamedValues.find("z")->second;
-    auto ret = Builder->CreateLoad(alloca->getAllocatedType(), alloca, "z");
-    Builder->CreateRet(ret);
+    // auto alloca = NamedValues.find("z")->second;
+    // auto ret = Builder->CreateLoad(alloca->getAllocatedType(), alloca, "z");
+    // Builder->CreateRet(ret);
 
     TheModule->print(llvm::errs(), nullptr);
 
@@ -407,8 +516,7 @@ int CodegenNodeVisitor::Compile(Program *prog) {
 
     TheModule->setDataLayout(TheTargetMachine->createDataLayout());
 
-    std::string Filename = "myprog";
-    std::string ObjectFilename = Filename + ".o";
+    std::string ObjectFilename = fileName + ".o";
     std::error_code EC;
     llvm::raw_fd_ostream dest(ObjectFilename, EC, llvm::sys::fs::OF_None);
 
@@ -428,7 +536,7 @@ int CodegenNodeVisitor::Compile(Program *prog) {
     pass.run(*TheModule);
     dest.flush();
 
-    std::string binaryFilename = Filename + ".a";
+    std::string binaryFilename = fileName + ".a";
     std::string cmd = "clang++ -no-pie  " + ObjectFilename + " -o " +
                       binaryFilename + " && rm " + ObjectFilename;
     std::system(cmd.c_str());

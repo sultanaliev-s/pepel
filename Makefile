@@ -26,5 +26,5 @@ clean:
 	rm -rf $(BINARY) $(OBJECTS) $(DEPFILES)
 
 check:
-	./pepel.a && ./myprog.a
+	./pepel.a samples/myprog.ppl && ./myprog.a
 	@echo $$?	

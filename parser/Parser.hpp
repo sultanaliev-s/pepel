@@ -11,11 +11,13 @@
 #include "../ast/ContinueStmt.hpp"
 #include "../ast/Expression.hpp"
 #include "../ast/ForStmt.hpp"
+#include "../ast/FuncStmt.hpp"
 #include "../ast/Id.hpp"
 #include "../ast/If.hpp"
 #include "../ast/Logical.hpp"
 #include "../ast/Operation.hpp"
 #include "../ast/Program.hpp"
+#include "../ast/ReturnStmt.hpp"
 #include "../ast/Set.hpp"
 #include "../ast/Unary.hpp"
 #include "../ast/VariableDeclaration.hpp"
@@ -44,6 +46,8 @@ class Parser {
     std::unique_ptr<Statement> statement();
     std::unique_ptr<Statement> ifStmt();
     std::unique_ptr<Statement> forStmt();
+    std::unique_ptr<Statement> funcStmt();
+    std::unique_ptr<Statement> returnStmt();
     std::unique_ptr<Statement> breakOrContinue();
     std::unique_ptr<BlockStmt> blockStmt();
     std::unique_ptr<Statement> assign();

@@ -61,6 +61,10 @@ std::vector<std::unique_ptr<Statement>> Parser::statements() {
 
 std::unique_ptr<Statement> Parser::statement() {
     switch (curToken->Type) {
+    case TokenEnum::Func:
+        return funcStmt();
+    case TokenEnum::Return:
+        return returnStmt();
     case TokenEnum::If:
         return ifStmt();
     case TokenEnum::For:
@@ -144,6 +148,73 @@ std::unique_ptr<Statement> Parser::breakOrContinue() {
     }
     next();
     return std::make_unique<ContinueStmt>();
+}
+
+std::unique_ptr<Statement> Parser::funcStmt() {
+    next();
+    if (curToken->Type != TokenEnum::ID) {
+        error("Expected function name");
+        return nullptr;
+    }
+    auto funcNameTok = std::static_pointer_cast<Word>(curToken);
+    auto funcName = funcNameTok->Lexeme;
+    next();
+
+    match(TokenEnum::LParen);
+    std::vector<std::pair<std::string, std::string>> args;
+    while (curToken->Type != TokenEnum::RParen) {
+        if (curToken->Type != TokenEnum::ID) {
+            error("Expected arg type");
+            return nullptr;
+        }
+        auto argTypeTok = std::static_pointer_cast<Word>(curToken);
+        auto argType = argTypeTok->Lexeme;
+        if (!isBasicType(argType)) {
+            error("Invalid arg type");
+            return nullptr;
+        }
+        next();
+
+        if (curToken->Type != TokenEnum::ID) {
+            error("Expected arg name");
+            return nullptr;
+        }
+        auto argNameTok = std::static_pointer_cast<Word>(curToken);
+        auto argName = argNameTok->Lexeme;
+        next();
+
+        if (curToken->Type == TokenEnum::Comma) {
+            if (nextToken->Type != TokenEnum::ID) {
+                error("Expected arg type");
+                return nullptr;
+            }
+            next();
+        }
+
+        args.push_back({argType, argName});
+    }
+    match(TokenEnum::RParen);
+
+    std::unique_ptr<std::string> returnType = nullptr;
+    if (curToken->Type == TokenEnum::ID) {
+        auto returnTypeTok = std::static_pointer_cast<Word>(curToken);
+        returnType = std::make_unique<std::string>(returnTypeTok->Lexeme);
+        next();
+        if (!isBasicType(*returnType)) {
+            error("Expected return type");
+            return nullptr;
+        }
+    }
+    return std::make_unique<FuncStmt>(
+        funcName, std::move(args), std::move(returnType), blockStmt());
+}
+
+std::unique_ptr<Statement> Parser::returnStmt() {
+    next();
+    if (curToken->Type == TokenEnum::Semicolon) {
+        return std::make_unique<ReturnStmt>(nullptr);
+    }
+    return std::make_unique<ReturnStmt>(expression());
 }
 
 std::unique_ptr<BlockStmt> Parser::blockStmt() {
