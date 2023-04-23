@@ -6,8 +6,10 @@
 #include "../ast/Arithmetic.hpp"
 #include "../ast/BlockStmt.hpp"
 #include "../ast/BreakStmt.hpp"
+#include "../ast/Call.hpp"
 #include "../ast/Constant.hpp"
 #include "../ast/ContinueStmt.hpp"
+#include "../ast/ExpressionStmt.hpp"
 #include "../ast/ForStmt.hpp"
 #include "../ast/FuncStmt.hpp"
 #include "../ast/Id.hpp"
@@ -73,6 +75,8 @@ class CodegenNodeVisitor : public NodeVisitor {
     llvm::Value *Visit(ContinueStmt *node) override;
     llvm::Value *Visit(FuncStmt *node) override;
     llvm::Value *Visit(ReturnStmt *node) override;
+    llvm::Value *Visit(Call *node) override;
+    llvm::Value *Visit(ExpressionStmt *node) override;
 
    private:
     llvm::Value *logError(std::string);
@@ -84,4 +88,5 @@ class CodegenNodeVisitor : public NodeVisitor {
     llvm::Type *getBasicType(std::string type);
     llvm::AllocaInst *createEntryBlockAlloca(
         llvm::Function *func, llvm::Type *type, const std::string &varName);
+    void createPrintFuncs();
 };

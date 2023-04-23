@@ -4,9 +4,11 @@
 class Arithmetic;
 class BlockStmt;
 class BreakStmt;
+class Call;
 class Constant;
 class ContinueStmt;
 class Expression;
+class ExpressionStmt;
 class ForStmt;
 class FuncStmt;
 class Id;
@@ -42,4 +44,6 @@ class NodeVisitor {
     virtual llvm::Value *Visit(ContinueStmt *node) = 0;
     virtual llvm::Value *Visit(FuncStmt *node) = 0;
     virtual llvm::Value *Visit(ReturnStmt *node) = 0;
+    virtual llvm::Value *Visit(Call *node) = 0;
+    virtual llvm::Value *Visit(ExpressionStmt *node) = 0;
 };

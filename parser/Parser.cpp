@@ -246,6 +246,8 @@ std::unique_ptr<Statement> Parser::assign() {
             return nullptr;
         } else if (nextToken->Type == TokenEnum::Assign) {
             return set();
+        } else if (nextToken->Type == TokenEnum::LParen) {
+            return expressionStmt();
         }
         error("Assign parser end " + curToken->ToString());
         return nullptr;
@@ -273,6 +275,10 @@ std::unique_ptr<Set> Parser::set() {
 
     error("Set parser ended " + curToken->ToString());
     return nullptr;
+}
+
+std::unique_ptr<Statement> Parser::expressionStmt() {
+    return std::make_unique<ExpressionStmt>(expression());
 }
 
 std::unique_ptr<Expression> Parser::expression() {
@@ -380,6 +386,10 @@ std::unique_ptr<Expression> Parser::factor() {
         next();
         return std::move(x);
     case TokenEnum::ID:
+        if (nextToken->Type == TokenEnum::LParen) {
+            return call();
+        }
+
         next();
         if (curToken->Type != TokenEnum::LBracket) {
             return std::make_unique<Id>(tok);
@@ -391,6 +401,23 @@ std::unique_ptr<Expression> Parser::factor() {
         error("Unsupported factor " + curToken->ToString());
         return x;
     }
+}
+
+std::unique_ptr<Expression> Parser::call() {
+    auto funcNameToken = std::static_pointer_cast<Word>(curToken);
+    auto funcName = funcNameToken->Lexeme;
+    next();
+
+    match(TokenEnum::LParen);
+
+    std::vector<std::unique_ptr<Expression>> args;
+    while (curToken->Type != TokenEnum::RParen) {
+        args.push_back(expression());
+    }
+
+    match(TokenEnum::RParen);
+
+    return std::make_unique<Call>(funcName, std::move(args));
 }
 
 void Parser::registerBasicTypes() {

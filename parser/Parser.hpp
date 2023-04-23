@@ -7,9 +7,11 @@
 #include "../ast/Arithmetic.hpp"
 #include "../ast/BlockStmt.hpp"
 #include "../ast/BreakStmt.hpp"
+#include "../ast/Call.hpp"
 #include "../ast/Constant.hpp"
 #include "../ast/ContinueStmt.hpp"
 #include "../ast/Expression.hpp"
+#include "../ast/ExpressionStmt.hpp"
 #include "../ast/ForStmt.hpp"
 #include "../ast/FuncStmt.hpp"
 #include "../ast/Id.hpp"
@@ -49,9 +51,11 @@ class Parser {
     std::unique_ptr<Statement> funcStmt();
     std::unique_ptr<Statement> returnStmt();
     std::unique_ptr<Statement> breakOrContinue();
+    std::unique_ptr<Statement> expressionStmt();
     std::unique_ptr<BlockStmt> blockStmt();
     std::unique_ptr<Statement> assign();
     std::unique_ptr<Expression> expression();
+    std::unique_ptr<Expression> call();
     std::unique_ptr<Expression> join();
     std::unique_ptr<Expression> equality();
     std::unique_ptr<Expression> relative();

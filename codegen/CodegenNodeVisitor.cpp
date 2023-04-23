@@ -6,6 +6,7 @@ CodegenNodeVisitor::CodegenNodeVisitor() {
 
     // Create a new builder for the module.
     Builder = std::make_unique<llvm::IRBuilder<>>(*TheContext);
+    createPrintFuncs();
 
     // auto i32 = Builder->getInt32Ty();
     // auto prototype = llvm::FunctionType::get(i32, false);
@@ -14,6 +15,49 @@ CodegenNodeVisitor::CodegenNodeVisitor() {
     // llvm::BasicBlock *body =
     //     llvm::BasicBlock::Create(*TheContext, "body", main_fn);
     // Builder->SetInsertPoint(body);
+}
+
+void CodegenNodeVisitor::createPrintFuncs() {
+    // use libc's printf function
+    auto i8p = Builder->getInt8PtrTy();
+    auto printf_prototype = llvm::FunctionType::get(i8p, true);
+    auto printf_fn = llvm::Function::Create(printf_prototype,
+        llvm::Function::ExternalLinkage, "printf", TheModule.get());
+    {
+        // Declare function PrintInt
+        llvm::FunctionType *printIntFuncType = llvm::FunctionType::get(
+            Builder->getVoidTy(), Builder->getInt32Ty(), false);
+        llvm::Function *printIntFunc = llvm::Function::Create(printIntFuncType,
+            llvm::Function::ExternalLinkage, "PrintInt", TheModule.get());
+        printIntFunc->setDoesNotThrow();
+        // PrintInt implementation
+        llvm::BasicBlock *printIntBB =
+            llvm::BasicBlock::Create(*TheContext, "body", printIntFunc);
+        Builder->SetInsertPoint(printIntBB);
+        llvm::Function::arg_iterator args = printIntFunc->arg_begin();
+        llvm::Value *arg_x = args++;
+        llvm::Value *formatStrI = Builder->CreateGlobalStringPtr("%d\n");
+        std::vector<llvm::Value *> printfArgs = {formatStrI, arg_x};
+        Builder->CreateCall(printf_fn, printfArgs);
+        Builder->CreateRetVoid();
+    }
+
+    // Declare function PrintFloat
+    llvm::FunctionType *printFloatFuncType = llvm::FunctionType::get(
+        Builder->getVoidTy(), Builder->getFloatTy(), false);
+    llvm::Function *printFloatFunc = llvm::Function::Create(printFloatFuncType,
+        llvm::Function::ExternalLinkage, "PrintFloat", TheModule.get());
+    printFloatFunc->setDoesNotThrow();
+    // PrintFloat implementation
+    llvm::BasicBlock *printFloatBB =
+        llvm::BasicBlock::Create(*TheContext, "body", printFloatFunc);
+    Builder->SetInsertPoint(printFloatBB);
+    llvm::Function::arg_iterator args = printFloatFunc->arg_begin();
+    llvm::Value *arg_y = args++;
+    llvm::Value *formatStrF = Builder->CreateGlobalStringPtr("%f\n");
+    std::vector<llvm::Value *> printfArgs = {formatStrF, arg_y};
+    Builder->CreateCall(printf_fn, printfArgs);
+    Builder->CreateRetVoid();
 }
 
 llvm::Value *CodegenNodeVisitor::Visit(Program *node) {
@@ -406,11 +450,11 @@ llvm::Value *CodegenNodeVisitor::Visit(FuncStmt *node) {
     node->Block->Accept(this);
 
     if (node->Name == "main") {
-        // auto alloca = NamedValues.find("z")->second;
-        // auto ret = Builder->CreateLoad(alloca->getAllocatedType(), alloca,
-        // "z"); Builder->CreateRet(llvm::Constant::getNullValue(type));
-        llvm::Value *retVal = Builder->getInt32(0);
-        Builder->CreateRet(retVal);
+        auto alloca = NamedValues.find("z")->second;
+        auto ret = Builder->CreateLoad(alloca->getAllocatedType(), alloca, "z");
+        Builder->CreateRet(ret);
+        // llvm::Value *retVal = Builder->getInt32(0);
+        // Builder->CreateRet(retVal);
     } else {
         Builder->CreateRetVoid();
     }
@@ -446,6 +490,31 @@ llvm::Value *CodegenNodeVisitor::Visit(ReturnStmt *node) {
     Builder->SetInsertPoint(restBB);
 
     return nullptr;
+}
+
+llvm::Value *CodegenNodeVisitor::Visit(Call *node) {
+    llvm::Function *func = TheModule->getFunction(node->FuncName);
+    if (func == nullptr) {
+        return logError("Unknown function referenced");
+    }
+
+    if (func->arg_size() != node->Args.size()) {
+        return logError("Incorrect # arguments passed");
+    }
+
+    std::vector<llvm::Value *> argVals;
+    for (unsigned i = 0, e = node->Args.size(); i != e; ++i) {
+        argVals.push_back(node->Args[i]->Accept(this));
+        if (argVals.back() == nullptr) {
+            return logError("Invalid arguments in the func call");
+        }
+    }
+
+    return Builder->CreateCall(func, argVals, "calltmp");
+}
+
+llvm::Value *CodegenNodeVisitor::Visit(ExpressionStmt *node) {
+    return node->Expr->Accept(this);
 }
 
 llvm::AllocaInst *CodegenNodeVisitor::createEntryBlockAlloca(
