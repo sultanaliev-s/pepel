@@ -1,4 +1,4 @@
-BINARY=pepel.a
+BINARY=pepel
 CODE=./ast ./codegen ./lexer ./parser
 
 CC=clang++

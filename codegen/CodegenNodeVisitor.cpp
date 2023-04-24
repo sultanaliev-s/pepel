@@ -450,11 +450,11 @@ llvm::Value *CodegenNodeVisitor::Visit(FuncStmt *node) {
     node->Block->Accept(this);
 
     if (node->Name == "main") {
-        auto alloca = NamedValues.find("z")->second;
-        auto ret = Builder->CreateLoad(alloca->getAllocatedType(), alloca, "z");
-        Builder->CreateRet(ret);
-        // llvm::Value *retVal = Builder->getInt32(0);
-        // Builder->CreateRet(retVal);
+        // auto alloca = NamedValues.find("z")->second;
+        // auto ret = Builder->CreateLoad(alloca->getAllocatedType(), alloca,
+        // "z"); Builder->CreateRet(ret);
+        llvm::Value *retVal = Builder->getInt32(0);
+        Builder->CreateRet(retVal);
     } else {
         Builder->CreateRetVoid();
     }
@@ -558,7 +558,7 @@ int CodegenNodeVisitor::Compile(Program *prog, std::string fileName) {
     // auto ret = Builder->CreateLoad(alloca->getAllocatedType(), alloca, "z");
     // Builder->CreateRet(ret);
 
-    TheModule->print(llvm::errs(), nullptr);
+    // TheModule->print(llvm::errs(), nullptr);
 
     llvm::InitializeAllTargetInfos();
     llvm::InitializeAllTargets();
@@ -605,12 +605,12 @@ int CodegenNodeVisitor::Compile(Program *prog, std::string fileName) {
     pass.run(*TheModule);
     dest.flush();
 
-    std::string binaryFilename = fileName + ".a";
+    std::string binaryFilename = fileName /* + ".a"*/;
     std::string cmd = "clang++ -no-pie  " + ObjectFilename + " -o " +
                       binaryFilename + " && rm " + ObjectFilename;
     std::system(cmd.c_str());
 
-    llvm::outs() << "\nWrote " << binaryFilename << "\n";
+    // llvm::outs() << "\nWrote " << binaryFilename << "\n";
 
     return 0;
 }

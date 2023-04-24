@@ -19,13 +19,13 @@ int main(int argc, char *argv[]) {
     auto lastDot = filePath.find_last_of('.');
     std::string fileName = filePath.substr(lastDir + 1, lastDot - lastDir - 1);
 
-    std::cout << filePath << std::endl;
+    // std::cout << filePath << std::endl;
 
     auto lexer = std::make_shared<Lexer>(filePath);
     Parser parser(lexer);
     auto program = parser.Parse();
-    std::cout << "Successfully parsed" << std::endl;
-    std::cout << program->ToString() << std::endl;
+    // std::cout << "Successfully parsed" << std::endl;
+    // std::cout << program->ToString() << std::endl;
 
     CodegenNodeVisitor codegen;
     codegen.Compile(program.get(), fileName);
