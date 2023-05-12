@@ -164,7 +164,7 @@ std::unique_ptr<Statement> Parser::funcStmt() {
     std::vector<std::pair<std::string, std::string>> args;
     while (curToken->Type != TokenEnum::RParen) {
         if (curToken->Type != TokenEnum::ID) {
-            error("Expected arg type");
+            error("Expected arg type, got: " + curToken->ToString());
             return nullptr;
         }
         auto argTypeTok = std::static_pointer_cast<Word>(curToken);
@@ -185,12 +185,11 @@ std::unique_ptr<Statement> Parser::funcStmt() {
 
         if (curToken->Type == TokenEnum::Comma) {
             if (nextToken->Type != TokenEnum::ID) {
-                error("Expected arg type");
+                error("Expected arg type in func def");
                 return nullptr;
             }
             next();
         }
-
         args.push_back({argType, argName});
     }
     match(TokenEnum::RParen);
@@ -398,7 +397,8 @@ std::unique_ptr<Expression> Parser::factor() {
         //     return offset(id);
         // }
     default:
-        error("Unsupported factor " + curToken->ToString());
+        error("Unsupported factor " + curToken->ToString() +
+              nextToken->ToString());
         return x;
     }
 }
@@ -413,6 +413,13 @@ std::unique_ptr<Expression> Parser::call() {
     std::vector<std::unique_ptr<Expression>> args;
     while (curToken->Type != TokenEnum::RParen) {
         args.push_back(expression());
+        if (curToken->Type == TokenEnum::Comma) {
+            if (nextToken->Type == TokenEnum::RParen) {
+                error("Expected expression after comma in function call");
+                return nullptr;
+            }
+            next();
+        }
     }
 
     match(TokenEnum::RParen);

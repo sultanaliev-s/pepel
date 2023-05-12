@@ -6,6 +6,8 @@ CodegenNodeVisitor::CodegenNodeVisitor() {
 
     // Create a new builder for the module.
     Builder = std::make_unique<llvm::IRBuilder<>>(*TheContext);
+
+    scope = std::make_unique<Scope>();
     createPrintFuncs();
 
     // auto i32 = Builder->getInt32Ty();
@@ -78,11 +80,13 @@ llvm::Value *CodegenNodeVisitor::Visit(Expression *node) {
 
 llvm::Value *CodegenNodeVisitor::Visit(Id *node) {
     auto var = std::static_pointer_cast<Word>(node->Tok);
-    if (NamedValues.count(var->Lexeme) == 0) {
+    llvm::AllocaInst *variable = scope->Get(var->Lexeme);
+    if (variable == nullptr) {
         return logError("Unknown variable name: " + var->Lexeme);
     }
-    llvm::AllocaInst *alloca = NamedValues.find(var->Lexeme)->second;
-    return Builder->CreateLoad(alloca->getAllocatedType(), alloca, var->Lexeme);
+
+    return Builder->CreateLoad(
+        variable->getAllocatedType(), variable, var->Lexeme);
 }
 
 llvm::Value *CodegenNodeVisitor::Visit(Logical *node) {
@@ -224,11 +228,11 @@ llvm::Value *CodegenNodeVisitor::Visit(Operation *node) {
 
 llvm::Value *CodegenNodeVisitor::Visit(Set *node) {
     auto word = std::static_pointer_cast<Word>(node->Id);
-    if (NamedValues.count(word->Lexeme) == 0) {
+
+    llvm::AllocaInst *variable = scope->Get(word->Lexeme);
+    if (variable == nullptr) {
         return logError("Unknown variable name: " + word->Lexeme);
     }
-
-    llvm::AllocaInst *variable = NamedValues.find(word->Lexeme)->second;
 
     if (node->Expr != nullptr) {
         llvm::Value *initialValue = node->Expr->Accept(this);
@@ -256,7 +260,7 @@ llvm::Value *CodegenNodeVisitor::Visit(VariableDeclaration *node) {
 
     llvm::AllocaInst *variable =
         Builder->CreateAlloca(variableType, nullptr, node->Id->Lexeme);
-    NamedValues.insert({node->Id->Lexeme, variable});
+    scope->Put(node->Id->Lexeme, variable);
 
     if (node->Expr != nullptr) {
         llvm::Value *initialValue = node->Expr->Accept(this);
@@ -333,7 +337,8 @@ llvm::Value *CodegenNodeVisitor::Visit(If *node) {
 }
 
 llvm::Value *CodegenNodeVisitor::Visit(ForStmt *node) {
-    std::cout << "enter for" << std::endl;
+    scope->NewScope();
+
     if (node->Init != nullptr) {
         llvm::Value *initVal = node->Init->Accept(this);
     }
@@ -373,6 +378,7 @@ llvm::Value *CodegenNodeVisitor::Visit(ForStmt *node) {
     Builder->SetInsertPoint(afterBB);
 
     loopStack.pop();
+    scope->EndScope();
     return nullptr;
 }
 
@@ -392,7 +398,6 @@ llvm::Value *CodegenNodeVisitor::Visit(BreakStmt *node) {
 
     Builder->SetInsertPoint(breakBB);
     Builder->CreateBr(loopStack.top());
-    loopStack.pop();
 
     func->getBasicBlockList().push_back(restBB);
     Builder->SetInsertPoint(restBB);
@@ -412,12 +417,17 @@ llvm::Value *CodegenNodeVisitor::Visit(FuncStmt *node) {
         }
     }
 
+    scope->NewScope();
+
     std::vector<llvm::Type *> argTypes;
     for (auto &type : node->Arguments) {
         argTypes.push_back(getBasicType(type.first));
     }
 
     llvm::Type *returnType;
+    if (node->Name == "main") {
+        node->ReturnType = std::make_unique<std::string>("int");
+    }
     if (node->ReturnType != nullptr) {
         returnType = getBasicType(*node->ReturnType);
     } else {
@@ -444,7 +454,7 @@ llvm::Value *CodegenNodeVisitor::Visit(FuncStmt *node) {
 
         Builder->CreateStore(&Arg, alloca);
 
-        NamedValues.insert({Arg.getName().str(), alloca});
+        scope->Put(Arg.getName().str(), alloca);
     }
 
     node->Block->Accept(this);
@@ -455,11 +465,17 @@ llvm::Value *CodegenNodeVisitor::Visit(FuncStmt *node) {
         // "z"); Builder->CreateRet(ret);
         llvm::Value *retVal = Builder->getInt32(0);
         Builder->CreateRet(retVal);
-    } else {
+    } else if (node->ReturnType == nullptr) {
         Builder->CreateRetVoid();
+    } else {
+        returnType = getBasicType(*node->ReturnType);
+        llvm::Value *retVal = llvm::Constant::getNullValue(returnType);
+        Builder->CreateRet(retVal);
     }
 
     llvm::verifyFunction(*func);
+
+    scope->EndScope();
 
     return func;
 }
@@ -510,7 +526,7 @@ llvm::Value *CodegenNodeVisitor::Visit(Call *node) {
         }
     }
 
-    return Builder->CreateCall(func, argVals, "calltmp");
+    return Builder->CreateCall(func, argVals);
 }
 
 llvm::Value *CodegenNodeVisitor::Visit(ExpressionStmt *node) {
@@ -526,10 +542,12 @@ llvm::AllocaInst *CodegenNodeVisitor::createEntryBlockAlloca(
 }
 
 llvm::Value *CodegenNodeVisitor::Visit(BlockStmt *node) {
+    scope->NewScope();
     for (auto const &i : node->Statements) {
         llvm::Value *v = i->Accept(this);
     }
 
+    scope->EndScope();
     return nullptr;
 }
 

@@ -169,6 +169,8 @@ std::shared_ptr<Token> Lexer::scan() {
         return std::make_shared<Word>("]", TokenEnum::RBracket);
     case ';':
         return std::make_shared<Word>(";", TokenEnum::Semicolon);
+    case ',':
+        return std::make_shared<Word>(",", TokenEnum::Comma);
     }
 
     if (cur == EOF) {

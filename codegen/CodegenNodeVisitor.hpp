@@ -23,6 +23,7 @@
 #include "../ast/Unary.hpp"
 #include "../ast/VariableDeclaration.hpp"
 #include "../lexer/RealNum.hpp"
+#include "Env.hpp"
 #include "NodeVisitor.hpp"
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/Optional.h"
@@ -50,8 +51,8 @@ class CodegenNodeVisitor : public NodeVisitor {
     std::unique_ptr<llvm::LLVMContext> TheContext;
     std::unique_ptr<llvm::IRBuilder<>> Builder;
     std::unique_ptr<llvm::Module> TheModule;
-    std::map<std::string, llvm::AllocaInst *> NamedValues;
     std::stack<llvm::BasicBlock *> loopStack;
+    std::unique_ptr<Scope> scope;
 
    public:
     CodegenNodeVisitor();
