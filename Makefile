@@ -17,8 +17,6 @@ all: $(BINARY)
 $(BINARY): $(OBJECTS)
 	$(CC) $(CFLAGS) -o $@ $^
 
-
-
 %.o: %.cpp
 	$(CC) $(CFLAGS) -c -o $@ $<
 
@@ -28,3 +26,5 @@ clean:
 check:
 	./pepel.a samples/myprog.ppl && ./myprog.a
 	@echo $$?	
+
+-include $(DEPFILES)
