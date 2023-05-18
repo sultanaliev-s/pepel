@@ -25,7 +25,7 @@ int main(int argc, char *argv[]) {
     Parser parser(lexer);
     auto program = parser.Parse();
     // std::cout << "Successfully parsed" << std::endl;
-    // std::cout << program->ToString() << std::endl;
+    std::cout << program->ToString() << std::endl << std::endl;
 
     CodegenNodeVisitor codegen;
     codegen.Compile(program.get(), fileName);

@@ -56,8 +56,10 @@ void CodegenNodeVisitor::createPrintFuncs() {
     Builder->SetInsertPoint(printFloatBB);
     llvm::Function::arg_iterator args = printFloatFunc->arg_begin();
     llvm::Value *arg_y = args++;
+    llvm::Value *casted_value =
+        Builder->CreateFPExt(arg_y, llvm::Type::getDoubleTy(*TheContext));
     llvm::Value *formatStrF = Builder->CreateGlobalStringPtr("%f\n");
-    std::vector<llvm::Value *> printfArgs = {formatStrF, arg_y};
+    std::vector<llvm::Value *> printfArgs = {formatStrF, casted_value};
     Builder->CreateCall(printf_fn, printfArgs);
     Builder->CreateRetVoid();
 }
@@ -409,6 +411,14 @@ llvm::Value *CodegenNodeVisitor::Visit(ContinueStmt *node) {
     return logError("Continue is not supported");
 }
 
+std::string getTypeString(llvm::Type *type) {
+    std::string typeStr;
+    llvm::raw_string_ostream rso(typeStr);
+    type->print(rso);
+    rso.flush();
+    return typeStr;
+}
+
 llvm::Value *CodegenNodeVisitor::Visit(FuncStmt *node) {
     {
         llvm::Function *f = TheModule->getFunction(node->Name);
@@ -473,7 +483,15 @@ llvm::Value *CodegenNodeVisitor::Visit(FuncStmt *node) {
         Builder->CreateRet(retVal);
     }
 
-    llvm::verifyFunction(*func);
+    std::string error_str;
+    llvm::raw_string_ostream error_stream(error_str);
+    if (llvm::verifyFunction(*func, &error_stream)) {
+        std::string msg =
+            "Error: Verification of the function " + node->Name + " failed!\n";
+        error_stream.flush();
+        msg += error_str;
+        logError(msg);
+    }
 
     scope->EndScope();
 
@@ -538,7 +556,7 @@ llvm::AllocaInst *CodegenNodeVisitor::createEntryBlockAlloca(
     llvm::IRBuilder<> TmpB(
         &func->getEntryBlock(), func->getEntryBlock().begin());
 
-    return TmpB.CreateAlloca(type, llvm::Constant::getNullValue(type), varName);
+    return TmpB.CreateAlloca(type, nullptr, varName);
 }
 
 llvm::Value *CodegenNodeVisitor::Visit(BlockStmt *node) {
@@ -576,7 +594,8 @@ int CodegenNodeVisitor::Compile(Program *prog, std::string fileName) {
     // auto ret = Builder->CreateLoad(alloca->getAllocatedType(), alloca, "z");
     // Builder->CreateRet(ret);
 
-    // TheModule->print(llvm::errs(), nullptr);
+    llvm::outs() << "\n";
+    TheModule->print(llvm::errs(), nullptr);
 
     llvm::InitializeAllTargetInfos();
     llvm::InitializeAllTargets();
