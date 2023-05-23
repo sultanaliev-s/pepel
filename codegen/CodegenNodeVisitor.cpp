@@ -9,14 +9,7 @@ CodegenNodeVisitor::CodegenNodeVisitor() {
 
     scope = std::make_unique<Scope>();
     createPrintFuncs();
-
-    // auto i32 = Builder->getInt32Ty();
-    // auto prototype = llvm::FunctionType::get(i32, false);
-    // llvm::Function *main_fn = llvm::Function::Create(
-    //     prototype, llvm::Function::ExternalLinkage, "main", TheModule.get());
-    // llvm::BasicBlock *body =
-    //     llvm::BasicBlock::Create(*TheContext, "body", main_fn);
-    // Builder->SetInsertPoint(body);
+    createExitFuncs();
 }
 
 void CodegenNodeVisitor::createPrintFuncs() {
@@ -64,6 +57,14 @@ void CodegenNodeVisitor::createPrintFuncs() {
     Builder->CreateRetVoid();
 }
 
+void CodegenNodeVisitor::createExitFuncs() {
+    auto i8p = Builder->getInt8PtrTy();
+    auto exitWithError_prototype =
+        llvm::FunctionType::get(Builder->getVoidTy(), i8p, false);
+    auto exitWithError_fn = llvm::Function::Create(exitWithError_prototype,
+        llvm::Function::ExternalLinkage, "exitWithError", TheModule.get());
+}
+
 llvm::Value *CodegenNodeVisitor::Visit(Program *node) {
     for (auto const &i : node->Statements) {
         i->Accept(this);
@@ -82,7 +83,8 @@ llvm::Value *CodegenNodeVisitor::Visit(Expression *node) {
 
 llvm::Value *CodegenNodeVisitor::Visit(Id *node) {
     auto var = std::static_pointer_cast<Word>(node->Tok);
-    llvm::AllocaInst *variable = scope->Get(var->Lexeme);
+    auto variableDetails = scope->Get(var->Lexeme);
+    llvm::AllocaInst *variable = variableDetails->Alloca;
     if (variable == nullptr) {
         return logError("Unknown variable name: " + var->Lexeme);
     }
@@ -231,7 +233,8 @@ llvm::Value *CodegenNodeVisitor::Visit(Operation *node) {
 llvm::Value *CodegenNodeVisitor::Visit(Set *node) {
     auto word = std::static_pointer_cast<Word>(node->Id);
 
-    llvm::AllocaInst *variable = scope->Get(word->Lexeme);
+    auto variableDetails = scope->Get(word->Lexeme);
+    llvm::AllocaInst *variable = variableDetails->Alloca;
     if (variable == nullptr) {
         return logError("Unknown variable name: " + word->Lexeme);
     }
@@ -245,7 +248,11 @@ llvm::Value *CodegenNodeVisitor::Visit(Set *node) {
 }
 
 llvm::Value *CodegenNodeVisitor::Visit(Unary *node) {
-    return logError("Not implemented Unary");
+    auto expr = node->Expr->Accept(this);
+    if (expr->getType() == llvm::Type::getFloatTy(*TheContext)) {
+        return Builder->CreateFNeg(expr);
+    }
+    return Builder->CreateNeg(expr);
 }
 
 llvm::Value *CodegenNodeVisitor::Visit(VariableDeclaration *node) {
@@ -261,7 +268,8 @@ llvm::Value *CodegenNodeVisitor::Visit(VariableDeclaration *node) {
     }
 
     llvm::AllocaInst *variable =
-        Builder->CreateAlloca(variableType, nullptr, node->Id->Lexeme);
+        createEntryBlockAlloca(Builder->GetInsertBlock()->getParent(),
+            variableType, nullptr, node->Id->Lexeme);
     scope->Put(node->Id->Lexeme, variable);
 
     if (node->Expr != nullptr) {
@@ -273,6 +281,138 @@ llvm::Value *CodegenNodeVisitor::Visit(VariableDeclaration *node) {
     }
 
     return variable;
+}
+
+llvm::Value *CodegenNodeVisitor::Visit(ArrayDeclaration *node) {
+    llvm::Type *variableType;
+    if (node->Type->Lexeme == "int") {
+        variableType = llvm::Type::getInt32Ty(*TheContext);
+    } else if (node->Type->Lexeme == "float") {
+        variableType = llvm::Type::getFloatTy(*TheContext);
+    } else if (node->Type->Lexeme == "bool") {
+        variableType = llvm::Type::getInt1Ty(*TheContext);
+    } else {
+        return logError("Unsupported type for declaration");
+    }
+
+    auto intType = llvm::Type::getInt32Ty(*TheContext);
+
+    llvm::AllocaInst *variable = createEntryBlockAlloca(
+        Builder->GetInsertBlock()->getParent(), variableType,
+        llvm::ConstantInt::getSigned(intType, node->Size), node->Id->Lexeme);
+    scope->Put(node->Id->Lexeme, variable, node->Size);
+
+    if (node->Expr != nullptr) {
+        logError("Arrays don't support initialization yet");
+        return nullptr;
+    } else {
+        llvm::Type *variablePtrType =
+            variable->getType()->getPointerElementType();
+        for (int i = 0, size = node->Size; i < size; i++) {
+            llvm::Value *arrayElementPtr =
+                Builder->CreateInBoundsGEP(variablePtrType, variable,
+                    llvm::ConstantInt::getSigned(intType, i),
+                    "arrayElem" + std::to_string(i) + "_");
+            auto store = Builder->CreateStore(
+                llvm::Constant::getNullValue(variableType), arrayElementPtr);
+        }
+    }
+
+    return variable;
+}
+
+llvm::Value *CodegenNodeVisitor::Visit(SetElement *node) {
+    auto variableDetails = scope->Get(node->Id->Lexeme);
+    llvm::AllocaInst *variable = variableDetails->Alloca;
+    if (variable == nullptr) {
+        return logError("Unknown variable name: " + node->Id->Lexeme);
+    }
+    llvm::Value *index = node->Index->Accept(this);
+    if (index->getType() != llvm::Type::getInt32Ty(*TheContext)) {
+        return logError("Index should be an integer value");
+    }
+
+    llvm::Value *arrayElementPtr = Builder->CreateInBoundsGEP(
+        variable->getType()->getPointerElementType(), variable, index);
+
+    llvm::Value *newValue = node->Expr->Accept(this);
+
+    return Builder->CreateStore(newValue, arrayElementPtr);
+}
+
+llvm::Value *CodegenNodeVisitor::Visit(AccessElement *node) {
+    auto variableDetails = scope->Get(node->Id);
+    llvm::AllocaInst *variable = variableDetails->Alloca;
+    if (variable == nullptr) {
+        return logError("Unknown variable name: " + node->Id);
+    }
+
+    llvm::Value *index = node->Index->Accept(this);
+    if (index->getType() != llvm::Type::getInt32Ty(*TheContext)) {
+        return logError("Index should be an integer value");
+    }
+
+    createInBoundsCheck(variableDetails, index);
+
+    llvm::Value *arrayElementPtr = Builder->CreateInBoundsGEP(
+        variable->getType()->getPointerElementType(), variable, index);
+
+    return Builder->CreateLoad(
+        variable->getAllocatedType(), arrayElementPtr, node->Id + "Access_");
+}
+
+llvm::Value *CodegenNodeVisitor::createInBoundsCheck(
+    VariableDetails *varDetails, llvm::Value *index) {
+    auto intType = llvm::Type::getInt32Ty(*TheContext);
+
+    auto outOfBoundsCond = Builder->CreateICmpSGE(index,
+        llvm::ConstantInt::getSigned(intType, varDetails->Size), "sgetmp");
+
+    llvm::Function *func = Builder->GetInsertBlock()->getParent();
+
+    llvm::BasicBlock *outOfBoundsBB =
+        llvm::BasicBlock::Create(*TheContext, "outOfBounds", func);
+    llvm::BasicBlock *inBoundsBB =
+        llvm::BasicBlock::Create(*TheContext, "inBounds");
+
+    Builder->CreateCondBr(outOfBoundsCond, outOfBoundsBB, inBoundsBB);
+
+    Builder->SetInsertPoint(outOfBoundsBB);
+
+    llvm::Value *outOfBoundsMsg =
+        Builder->CreateGlobalStringPtr("Index out of bounds\n");
+
+    llvm::Function *exitWithError_fn = TheModule->getFunction("exitWithError");
+    llvm::Function *printint = TheModule->getFunction("PrintInt");
+    Builder->CreateCall(printint, index);
+    Builder->CreateCall(exitWithError_fn, outOfBoundsMsg);
+    Builder->CreateUnreachable();
+
+    func->getBasicBlockList().push_back(inBoundsBB);
+    Builder->SetInsertPoint(inBoundsBB);
+
+    auto negativeIndexCond = Builder->CreateICmpSLT(
+        index, llvm::ConstantInt::getSigned(intType, 0), "slttmp");
+
+    llvm::BasicBlock *negativeIndexBB =
+        llvm::BasicBlock::Create(*TheContext, "negativeIndex", func);
+    llvm::BasicBlock *validIndexBB =
+        llvm::BasicBlock::Create(*TheContext, "validIndex");
+
+    Builder->CreateCondBr(negativeIndexCond, negativeIndexBB, validIndexBB);
+
+    Builder->SetInsertPoint(negativeIndexBB);
+
+    llvm::Value *negativeIndexMsg =
+        Builder->CreateGlobalStringPtr("Negative index\n");
+
+    Builder->CreateCall(exitWithError_fn, negativeIndexMsg);
+    Builder->CreateUnreachable();
+
+    func->getBasicBlockList().push_back(validIndexBB);
+    Builder->SetInsertPoint(validIndexBB);
+
+    return nullptr;
 }
 
 llvm::Value *CodegenNodeVisitor::Visit(Constant *node) {
@@ -459,8 +599,8 @@ llvm::Value *CodegenNodeVisitor::Visit(FuncStmt *node) {
     Builder->SetInsertPoint(BB);
 
     for (auto &Arg : func->args()) {
-        llvm::AllocaInst *alloca =
-            createEntryBlockAlloca(func, Arg.getType(), Arg.getName().str());
+        llvm::AllocaInst *alloca = createEntryBlockAlloca(
+            func, Arg.getType(), nullptr, Arg.getName().str());
 
         Builder->CreateStore(&Arg, alloca);
 
@@ -551,14 +691,6 @@ llvm::Value *CodegenNodeVisitor::Visit(ExpressionStmt *node) {
     return node->Expr->Accept(this);
 }
 
-llvm::AllocaInst *CodegenNodeVisitor::createEntryBlockAlloca(
-    llvm::Function *func, llvm::Type *type, const std::string &varName) {
-    llvm::IRBuilder<> TmpB(
-        &func->getEntryBlock(), func->getEntryBlock().begin());
-
-    return TmpB.CreateAlloca(type, nullptr, varName);
-}
-
 llvm::Value *CodegenNodeVisitor::Visit(BlockStmt *node) {
     scope->NewScope();
     for (auto const &i : node->Statements) {
@@ -567,6 +699,15 @@ llvm::Value *CodegenNodeVisitor::Visit(BlockStmt *node) {
 
     scope->EndScope();
     return nullptr;
+}
+
+llvm::AllocaInst *CodegenNodeVisitor::createEntryBlockAlloca(
+    llvm::Function *func, llvm::Type *type, llvm::Value *arraySize,
+    const std::string &varName) {
+    llvm::IRBuilder<> TmpB(
+        &func->getEntryBlock(), func->getEntryBlock().begin());
+
+    return TmpB.CreateAlloca(type, arraySize, varName);
 }
 
 llvm::Type *CodegenNodeVisitor::getBasicType(std::string type) {
@@ -583,7 +724,7 @@ llvm::Type *CodegenNodeVisitor::getBasicType(std::string type) {
 }
 
 llvm::Value *CodegenNodeVisitor::logError(std::string msg) {
-    std::cerr << msg << std::endl;
+    errors << msg << std::endl;
     return nullptr;
 }
 
@@ -596,6 +737,19 @@ int CodegenNodeVisitor::Compile(Program *prog, std::string fileName) {
 
     llvm::outs() << "\n";
     TheModule->print(llvm::errs(), nullptr);
+
+    std::string error_str;
+    llvm::raw_string_ostream error_stream(error_str);
+    if (llvm::verifyModule(*TheModule, &error_stream)) {
+        std::string msg = "Error: Verification of the module failed!\n";
+        error_stream.flush();
+        msg += error_str;
+        logError(msg);
+    }
+
+    if (errors.str() != "") {
+        llvm::errs() << "\n" << errors.str() << "\n";
+    }
 
     llvm::InitializeAllTargetInfos();
     llvm::InitializeAllTargets();
@@ -642,9 +796,12 @@ int CodegenNodeVisitor::Compile(Program *prog, std::string fileName) {
     pass.run(*TheModule);
     dest.flush();
 
-    std::string binaryFilename = fileName /* + ".a"*/;
+    std::string binaryFilename = fileName + ".a";
+    std::string externalFunctions =
+        " /home/sardar/code/thesis/pepel/external_functions/Basic.o ";
     std::string cmd = "clang++ -no-pie  " + ObjectFilename + " -o " +
-                      binaryFilename + " && rm " + ObjectFilename;
+                      binaryFilename + externalFunctions + " && rm " +
+                      ObjectFilename;
     std::system(cmd.c_str());
 
     // llvm::outs() << "\nWrote " << binaryFilename << "\n";

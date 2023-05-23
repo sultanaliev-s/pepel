@@ -4,7 +4,9 @@
 #include <memory>
 #include <string>
 
+#include "../ast/AccessElement.hpp"
 #include "../ast/Arithmetic.hpp"
+#include "../ast/ArrayDeclaration.hpp"
 #include "../ast/BlockStmt.hpp"
 #include "../ast/BreakStmt.hpp"
 #include "../ast/Call.hpp"
@@ -21,6 +23,7 @@
 #include "../ast/Program.hpp"
 #include "../ast/ReturnStmt.hpp"
 #include "../ast/Set.hpp"
+#include "../ast/SetElement.hpp"
 #include "../ast/Unary.hpp"
 #include "../ast/VariableDeclaration.hpp"
 #include "../lexer/Lexer.hpp"
@@ -42,6 +45,7 @@ class Parser {
    private:
     void next();
     bool match(TokenEnum token);
+    bool isMatching(TokenEnum token);
     void error(std::string message);
     std::unique_ptr<Program> program();
     std::vector<std::unique_ptr<Statement>> statements();
@@ -63,7 +67,9 @@ class Parser {
     std::unique_ptr<Expression> factor();
     std::unique_ptr<Expression> term();
     std::unique_ptr<Expression> unary();
+    std::unique_ptr<Expression> accessElement(std::shared_ptr<Token> id);
     std::unique_ptr<Set> set();
+    std::unique_ptr<Statement> setElement();
     void registerBasicTypes();
     void registerKeywords();
     bool isBasicType(std::string lexeme);

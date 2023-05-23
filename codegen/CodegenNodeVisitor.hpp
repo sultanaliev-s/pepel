@@ -1,9 +1,12 @@
 #pragma once
 #include <iostream>
 #include <map>
+#include <sstream>
 #include <stack>
 
+#include "../ast/AccessElement.hpp"
 #include "../ast/Arithmetic.hpp"
+#include "../ast/ArrayDeclaration.hpp"
 #include "../ast/BlockStmt.hpp"
 #include "../ast/BreakStmt.hpp"
 #include "../ast/Call.hpp"
@@ -20,6 +23,7 @@
 #include "../ast/Program.hpp"
 #include "../ast/ReturnStmt.hpp"
 #include "../ast/Set.hpp"
+#include "../ast/SetElement.hpp"
 #include "../ast/Unary.hpp"
 #include "../ast/VariableDeclaration.hpp"
 #include "../lexer/RealNum.hpp"
@@ -53,6 +57,7 @@ class CodegenNodeVisitor : public NodeVisitor {
     std::unique_ptr<llvm::Module> TheModule;
     std::stack<llvm::BasicBlock *> loopStack;
     std::unique_ptr<Scope> scope;
+    std::ostringstream errors;
 
    public:
     CodegenNodeVisitor();
@@ -68,6 +73,7 @@ class CodegenNodeVisitor : public NodeVisitor {
     llvm::Value *Visit(Set *node) override;
     llvm::Value *Visit(Unary *node) override;
     llvm::Value *Visit(VariableDeclaration *node) override;
+    llvm::Value *Visit(ArrayDeclaration *node) override;
     llvm::Value *Visit(Constant *node) override;
     llvm::Value *Visit(If *node) override;
     llvm::Value *Visit(BlockStmt *node) override;
@@ -78,6 +84,8 @@ class CodegenNodeVisitor : public NodeVisitor {
     llvm::Value *Visit(ReturnStmt *node) override;
     llvm::Value *Visit(Call *node) override;
     llvm::Value *Visit(ExpressionStmt *node) override;
+    llvm::Value *Visit(AccessElement *node) override;
+    llvm::Value *Visit(SetElement *node) override;
 
    private:
     llvm::Value *logError(std::string);
@@ -87,7 +95,11 @@ class CodegenNodeVisitor : public NodeVisitor {
     llvm::Value *intLogic(llvm::Value *l, llvm::Value *r, TokenEnum op);
     llvm::Value *floatLogic(llvm::Value *l, llvm::Value *r, TokenEnum op);
     llvm::Type *getBasicType(std::string type);
-    llvm::AllocaInst *createEntryBlockAlloca(
-        llvm::Function *func, llvm::Type *type, const std::string &varName);
+    llvm::AllocaInst *createEntryBlockAlloca(llvm::Function *func,
+        llvm::Type *type, llvm::Value *arraySize = (llvm::Value *)nullptr,
+        const std::string &varName = "");
+    llvm::Value *createInBoundsCheck(
+        VariableDetails *varDetails, llvm::Value *index);
     void createPrintFuncs();
+    void createExitFuncs();
 };

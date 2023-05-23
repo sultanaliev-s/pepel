@@ -15,6 +15,10 @@ class Call : public Expression {
     }
 
     std::string ToString() override {
-        return "Call " + FuncName;
+        std::string args = "";
+        for (auto& expr : Args) {
+            args += expr->ToString();
+        }
+        return "Call " + FuncName + "(" + args + ")";
     }
 };

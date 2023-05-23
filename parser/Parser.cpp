@@ -28,9 +28,14 @@ bool Parser::match(TokenEnum token) {
         return true;
     } else {
         error("syntax error, expected: " + TokenEnumToString(token) +
-              " on line " + std::to_string(lexer->Line));
+              "; got: " + TokenEnumToString(curToken->Type) + ". Line " +
+              std::to_string(lexer->Line));
         return false;
     }
+}
+
+bool Parser::isMatching(TokenEnum token) {
+    return curToken->Type == token;
 }
 
 void Parser::error(std::string message) {
@@ -227,40 +232,63 @@ std::unique_ptr<BlockStmt> Parser::blockStmt() {
 }
 
 std::unique_ptr<Statement> Parser::assign() {
-    if (curToken->Type == TokenEnum::ID) {
-        auto word = std::static_pointer_cast<Word>(curToken);
-        if (isBasicType(word->Lexeme)) {
-            next();
-            auto id = std::static_pointer_cast<Word>(curToken);
-            next();
-            if (curToken->Type == TokenEnum::Assign) {
-                next();
-                auto expr = expression();
-                return std::make_unique<VariableDeclaration>(
-                    word, id, std::move(expr));
-            } else if (curToken->Type == TokenEnum::Semicolon) {
-                return std::make_unique<VariableDeclaration>(word, id, nullptr);
-            }
-            error("Assing (var declaration) ended " + curToken->ToString());
-            return nullptr;
-        } else if (nextToken->Type == TokenEnum::Assign) {
-            return set();
-        } else if (nextToken->Type == TokenEnum::LParen) {
-            return expressionStmt();
-        }
-        error("Assign parser end " + curToken->ToString());
+    if (curToken->Type != TokenEnum::ID) {
+        error("Assign parser did not match ID " + curToken->ToString());
         return nullptr;
     }
-    error("Assign parser did not match ID " + curToken->ToString());
-    return nullptr;
-    // switch (curToken->Type) {
-    // case TokenEnum::ID:
-    //     identifier();
-    //     break;
 
-    // default:
-    //     break;
-    // }
+    auto typeToken = std::static_pointer_cast<Word>(curToken);
+    if (isBasicType(typeToken->Lexeme) && nextToken->Type == TokenEnum::ID) {
+        next();
+
+        if (!isMatching(TokenEnum::ID)) {
+            error("Expected an identifier");
+        }
+        std::shared_ptr<Word> id = std::static_pointer_cast<Word>(curToken);
+        next();
+
+        switch (curToken->Type) {
+        case TokenEnum::Assign:
+            next();
+            return std::make_unique<VariableDeclaration>(
+                typeToken, id, expression());
+        case TokenEnum::Semicolon:
+            return std::make_unique<VariableDeclaration>(
+                typeToken, id, nullptr);
+        default:
+            error("Assign (var declaration) ended " + curToken->ToString());
+            return nullptr;
+        }
+    } else if (isBasicType(typeToken->Lexeme) &&
+               nextToken->Type == TokenEnum::LBracket) {
+        next();
+        next();
+
+        if (!isMatching(TokenEnum::Num)) {
+            error("Expected an integer for the size of the array");
+        }
+        std::shared_ptr<Number> arraySize =
+            std::static_pointer_cast<Number>(curToken);
+        next();
+
+        match(TokenEnum::RBracket);
+
+        if (!isMatching(TokenEnum::ID)) {
+            error("Expected an identifier");
+        }
+        std::shared_ptr<Word> id = std::static_pointer_cast<Word>(curToken);
+        next();
+
+        return std::make_unique<ArrayDeclaration>(
+            typeToken, arraySize->Value, id, nullptr);
+    } else if (nextToken->Type == TokenEnum::Assign) {
+        return set();
+    } else if (nextToken->Type == TokenEnum::LBracket) {
+        return setElement();
+    } else if (nextToken->Type == TokenEnum::LParen) {
+        return expressionStmt();
+    }
+    return expressionStmt();
 }
 
 std::unique_ptr<Set> Parser::set() {
@@ -274,6 +302,23 @@ std::unique_ptr<Set> Parser::set() {
 
     error("Set parser ended " + curToken->ToString());
     return nullptr;
+}
+
+std::unique_ptr<Statement> Parser::setElement() {
+    auto id = std::static_pointer_cast<Word>(curToken);
+    next();
+    match(TokenEnum::LBracket);
+    auto index = expression();
+    match(TokenEnum::RBracket);
+    if (curToken->Type == TokenEnum::Assign) {
+        next();
+        auto expr = expression();
+        return std::make_unique<SetElement>(
+            id, std::move(index), std::move(expr));
+    }
+
+    return std::make_unique<ExpressionStmt>(
+        std::make_unique<AccessElement>(id->Lexeme, std::move(index)));
 }
 
 std::unique_ptr<Statement> Parser::expressionStmt() {
@@ -390,12 +435,11 @@ std::unique_ptr<Expression> Parser::factor() {
         }
 
         next();
-        if (curToken->Type != TokenEnum::LBracket) {
+        if (curToken->Type == TokenEnum::LBracket) {
+            return accessElement(tok);
+        } else {
             return std::make_unique<Id>(tok);
         }
-        // else {
-        //     return offset(id);
-        // }
     default:
         error("Unsupported factor " + curToken->ToString() +
               nextToken->ToString());
@@ -425,6 +469,19 @@ std::unique_ptr<Expression> Parser::call() {
     match(TokenEnum::RParen);
 
     return std::make_unique<Call>(funcName, std::move(args));
+}
+
+std::unique_ptr<Expression> Parser::accessElement(std::shared_ptr<Token> id) {
+    auto IdToken = std::static_pointer_cast<Word>(id);
+    auto Id = IdToken->Lexeme;
+
+    match(TokenEnum::LBracket);
+
+    auto expr = expression();
+
+    match(TokenEnum::RBracket);
+
+    return std::make_unique<AccessElement>(Id, std::move(expr));
 }
 
 void Parser::registerBasicTypes() {

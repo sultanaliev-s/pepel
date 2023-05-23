@@ -1,7 +1,7 @@
 #include "Lexer.hpp"
 
 Lexer::Lexer(std::string filePath) : Line(0), peek(' '), lastToken(nullptr) {
-    Line = 0;
+    Line = 1;
     peek = ' ';
     fStream = std::ifstream(filePath);
     if (!fStream.is_open()) {
@@ -21,10 +21,10 @@ std::shared_ptr<Token> Lexer::scan() {
         if (peek == ' ' || peek == '\t') {
             continue;
         } else if (peek == '\n') {
+            Line++;
             if (requiresSemicolon()) {
                 return std::make_shared<Token>(TokenEnum::Semicolon);
             }
-            Line++;
         } else {
             break;
         }

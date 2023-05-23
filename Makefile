@@ -23,8 +23,9 @@ $(BINARY): $(OBJECTS)
 clean:
 	rm -rf $(BINARY) $(OBJECTS) $(DEPFILES)
 
-check:
-	./pepel.a samples/myprog.ppl && ./myprog.a
-	@echo $$?	
+check: $(BINARY)
+	@echo ""
+	./pepel samples/myprog.ppl && ./myprog.a
+	@echo "\nExited with $$?"
 
 -include $(DEPFILES)
