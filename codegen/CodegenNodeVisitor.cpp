@@ -9,6 +9,7 @@ CodegenNodeVisitor::CodegenNodeVisitor() {
 
     scope = std::make_unique<Scope>();
     createPrintFuncs();
+    createScanFuncs();
     createExitFuncs();
     createStrings();
 }
@@ -164,6 +165,20 @@ void CodegenNodeVisitor::createPrintFuncs() {
     }
 }
 
+void CodegenNodeVisitor::createScanFuncs() {
+    auto intType = Builder->getInt32Ty();
+    auto scanIntName = "ScanInt__";
+    auto scanInt_prototype = llvm::FunctionType::get(intType, false);
+    auto scanInt_fn = llvm::Function::Create(scanInt_prototype,
+        llvm::Function::ExternalLinkage, scanIntName, TheModule.get());
+
+    auto floatType = Builder->getFloatTy();
+    auto scanFloatName = "ScanFloat__";
+    auto scanFloat_prototype = llvm::FunctionType::get(floatType, false);
+    auto scanFloat_fn = llvm::Function::Create(scanFloat_prototype,
+        llvm::Function::ExternalLinkage, scanFloatName, TheModule.get());
+}
+
 void CodegenNodeVisitor::createExitFuncs() {
     auto i8p = Builder->getInt8PtrTy();
     auto intType = Builder->getInt32Ty();
@@ -202,10 +217,10 @@ llvm::Value *CodegenNodeVisitor::Visit(Expression *node) {
 llvm::Value *CodegenNodeVisitor::Visit(Id *node) {
     auto var = std::static_pointer_cast<Word>(node->Tok);
     auto variableDetails = scope->Get(var->Lexeme);
-    llvm::AllocaInst *variable = variableDetails->Alloca;
-    if (variable == nullptr) {
+    if (variableDetails == nullptr) {
         return logError("Unknown variable name: " + var->Lexeme);
     }
+    llvm::AllocaInst *variable = variableDetails->Alloca;
 
     return Builder->CreateLoad(
         variable->getAllocatedType(), variable, var->Lexeme);
@@ -469,6 +484,8 @@ llvm::Value *CodegenNodeVisitor::Visit(SetElement *node) {
     if (index->getType() != llvm::Type::getInt32Ty(*TheContext)) {
         return logError("Index should be an integer value");
     }
+
+    createInBoundsCheck(variableDetails, index);
 
     llvm::Value *arrayElementPtr = Builder->CreateInBoundsGEP(
         variable->getType()->getPointerElementType(), variable, index);
@@ -827,7 +844,8 @@ llvm::Value *CodegenNodeVisitor::Visit(Call *node) {
 
     llvm::Function *func = TheModule->getFunction(funcName);
     if (func == nullptr) {
-        return logError("Unknown function referenced :" + node->FuncName);
+        return logError("Unknown function referenced: " + node->FuncName +
+                        " Mangled: " + funcName);
     }
 
     if (func->arg_size() > node->Args.size() && !func->isVarArg()) {

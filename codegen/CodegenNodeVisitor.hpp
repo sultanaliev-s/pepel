@@ -103,6 +103,7 @@ class CodegenNodeVisitor : public NodeVisitor {
     llvm::Value *createInBoundsCheck(
         VariableDetails *varDetails, llvm::Value *index);
     void createPrintFuncs();
+    void createScanFuncs();
     void createExitFuncs();
     void createStrings();
     std::string mangleFunction(

@@ -25,7 +25,8 @@ clean:
 
 check: $(BINARY)
 	@echo ""
-	./pepel samples/myprog.ppl && ./myprog.a
+	./pepel samples/myprog.ppl
+	./myprog.a
 	@echo "\nExited with $$?"
 
 -include $(DEPFILES)
