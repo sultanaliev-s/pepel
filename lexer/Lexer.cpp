@@ -6,7 +6,7 @@ Lexer::Lexer(std::string filePath) : Line(0), peek(' '), lastToken(nullptr) {
     fStream = std::ifstream(filePath);
     if (!fStream.is_open()) {
         std::cerr << "Failed to open " + filePath << std::endl;
-        abort();
+        exit(1);
     }
     fStream >> std::noskipws;
 }
@@ -80,6 +80,49 @@ std::shared_ptr<Token> Lexer::scan() {
         }
 
         return std::make_shared<Word>(lexeme, TokenEnum::ID);
+    }
+
+    if (peek == '"') {
+        std::string stringLiteral{};
+        readChar();
+
+        while (peek != '"') {
+            if (peek == '\\') {
+                readChar();
+                switch (peek) {
+                case 'n':
+                    peek = '\n';
+                    break;
+                case 't':
+                    peek = '\t';
+                    break;
+                case 'b':
+                    peek = '\b';
+                    break;
+                case 'f':
+                    peek = '\f';
+                    break;
+                case 'r':
+                    peek = '\r';
+                    break;
+                case '"':
+                    peek = '\"';
+                    break;
+                case '\\':
+                    peek = '\\';
+                    break;
+                default:
+                    std::cout << "ERROR UNDEFINED: escape sequence \\" << peek
+                              << std::endl;
+                    return std::make_shared<Token>(TokenEnum::NOTDEFINED);
+                    ;
+                }
+            }
+            stringLiteral += peek;
+            readChar();
+        }
+        readChar();
+        return std::make_shared<String>(stringLiteral);
     }
 
     auto cur = peek;

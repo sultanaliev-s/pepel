@@ -10,6 +10,7 @@ CodegenNodeVisitor::CodegenNodeVisitor() {
     scope = std::make_unique<Scope>();
     createPrintFuncs();
     createExitFuncs();
+    createStrings();
 }
 
 void CodegenNodeVisitor::createPrintFuncs() {
@@ -19,50 +20,167 @@ void CodegenNodeVisitor::createPrintFuncs() {
     auto printf_fn = llvm::Function::Create(printf_prototype,
         llvm::Function::ExternalLinkage, "printf", TheModule.get());
     {
-        // Declare function PrintInt
-        llvm::FunctionType *printIntFuncType = llvm::FunctionType::get(
-            Builder->getVoidTy(), Builder->getInt32Ty(), false);
+        // Declare function Print(int)
+        std::vector<llvm::Type *> argTypes = {Builder->getInt32Ty()};
+        llvm::FunctionType *printIntFuncType =
+            llvm::FunctionType::get(Builder->getVoidTy(), argTypes, false);
+
+        std::string printFuncName = mangleFunction("Print", argTypes);
         llvm::Function *printIntFunc = llvm::Function::Create(printIntFuncType,
-            llvm::Function::ExternalLinkage, "PrintInt", TheModule.get());
+            llvm::Function::ExternalLinkage, printFuncName, TheModule.get());
         printIntFunc->setDoesNotThrow();
-        // PrintInt implementation
+
+        // Print(int) implementation
         llvm::BasicBlock *printIntBB =
             llvm::BasicBlock::Create(*TheContext, "body", printIntFunc);
         Builder->SetInsertPoint(printIntBB);
         llvm::Function::arg_iterator args = printIntFunc->arg_begin();
         llvm::Value *arg_x = args++;
-        llvm::Value *formatStrI = Builder->CreateGlobalStringPtr("%d\n");
-        std::vector<llvm::Value *> printfArgs = {formatStrI, arg_x};
+        llvm::Value *formatStr =
+            Builder->CreateGlobalStringPtr("%d", "formatStrInt");
+        std::vector<llvm::Value *> printfArgs = {formatStr, arg_x};
         Builder->CreateCall(printf_fn, printfArgs);
         Builder->CreateRetVoid();
     }
+    {
+        // Declare function Println(int)
+        std::vector<llvm::Type *> argTypes = {Builder->getInt32Ty()};
+        llvm::FunctionType *printIntFuncType =
+            llvm::FunctionType::get(Builder->getVoidTy(), argTypes, false);
+        std::string printlnFuncName = mangleFunction("Println", argTypes);
+        llvm::Function *printIntFunc = llvm::Function::Create(printIntFuncType,
+            llvm::Function::ExternalLinkage, printlnFuncName, TheModule.get());
+        printIntFunc->setDoesNotThrow();
 
-    // Declare function PrintFloat
-    llvm::FunctionType *printFloatFuncType = llvm::FunctionType::get(
-        Builder->getVoidTy(), Builder->getFloatTy(), false);
-    llvm::Function *printFloatFunc = llvm::Function::Create(printFloatFuncType,
-        llvm::Function::ExternalLinkage, "PrintFloat", TheModule.get());
-    printFloatFunc->setDoesNotThrow();
-    // PrintFloat implementation
-    llvm::BasicBlock *printFloatBB =
-        llvm::BasicBlock::Create(*TheContext, "body", printFloatFunc);
-    Builder->SetInsertPoint(printFloatBB);
-    llvm::Function::arg_iterator args = printFloatFunc->arg_begin();
-    llvm::Value *arg_y = args++;
-    llvm::Value *casted_value =
-        Builder->CreateFPExt(arg_y, llvm::Type::getDoubleTy(*TheContext));
-    llvm::Value *formatStrF = Builder->CreateGlobalStringPtr("%f\n");
-    std::vector<llvm::Value *> printfArgs = {formatStrF, casted_value};
-    Builder->CreateCall(printf_fn, printfArgs);
-    Builder->CreateRetVoid();
+        // Println(int) implementation
+        llvm::BasicBlock *printIntBB =
+            llvm::BasicBlock::Create(*TheContext, "body", printIntFunc);
+        Builder->SetInsertPoint(printIntBB);
+        llvm::Function::arg_iterator args = printIntFunc->arg_begin();
+        llvm::Value *arg_x = args++;
+        llvm::Value *formatStr =
+            Builder->CreateGlobalStringPtr("%d\n", "formatStrIntln");
+        std::vector<llvm::Value *> printfArgs = {formatStr, arg_x};
+        Builder->CreateCall(printf_fn, printfArgs);
+        Builder->CreateRetVoid();
+    }
+    {
+        // Declare function Print(float)
+        std::vector<llvm::Type *> argTypes = {Builder->getFloatTy()};
+        llvm::FunctionType *printFloatFuncType =
+            llvm::FunctionType::get(Builder->getVoidTy(), argTypes, false);
+
+        std::string funcName = mangleFunction("Print", argTypes);
+        llvm::Function *printFloatFunc =
+            llvm::Function::Create(printFloatFuncType,
+                llvm::Function::ExternalLinkage, funcName, TheModule.get());
+        printFloatFunc->setDoesNotThrow();
+
+        // Print(float) implementation
+        llvm::BasicBlock *printFloatBB =
+            llvm::BasicBlock::Create(*TheContext, "body", printFloatFunc);
+        Builder->SetInsertPoint(printFloatBB);
+        llvm::Function::arg_iterator args = printFloatFunc->arg_begin();
+        llvm::Value *arg_y = args++;
+        llvm::Value *casted_value =
+            Builder->CreateFPExt(arg_y, llvm::Type::getDoubleTy(*TheContext));
+        llvm::Value *formatStr =
+            Builder->CreateGlobalStringPtr("%f", "formatStrFloat");
+        std::vector<llvm::Value *> printfArgs = {formatStr, casted_value};
+        Builder->CreateCall(printf_fn, printfArgs);
+        Builder->CreateRetVoid();
+    }
+    {
+        // Declare function Println(float)
+        std::vector<llvm::Type *> argTypes = {Builder->getFloatTy()};
+        llvm::FunctionType *printFloatFuncType =
+            llvm::FunctionType::get(Builder->getVoidTy(), argTypes, false);
+
+        std::string funcName = mangleFunction("Println", argTypes);
+        llvm::Function *printFloatFunc =
+            llvm::Function::Create(printFloatFuncType,
+                llvm::Function::ExternalLinkage, funcName, TheModule.get());
+        printFloatFunc->setDoesNotThrow();
+
+        // Println(float) implementation
+        llvm::BasicBlock *printFloatBB =
+            llvm::BasicBlock::Create(*TheContext, "body", printFloatFunc);
+        Builder->SetInsertPoint(printFloatBB);
+        llvm::Function::arg_iterator args = printFloatFunc->arg_begin();
+        llvm::Value *arg_y = args++;
+        llvm::Value *casted_value =
+            Builder->CreateFPExt(arg_y, llvm::Type::getDoubleTy(*TheContext));
+        llvm::Value *formatStr =
+            Builder->CreateGlobalStringPtr("%f\n", "formatStrFloatln");
+        std::vector<llvm::Value *> printfArgs = {formatStr, casted_value};
+        Builder->CreateCall(printf_fn, printfArgs);
+        Builder->CreateRetVoid();
+    }
+    {  // Declare function Print(string)
+        std::vector<llvm::Type *> argTypes = {Builder->getInt8PtrTy()};
+        llvm::FunctionType *printStringFuncType =
+            llvm::FunctionType::get(Builder->getVoidTy(), argTypes, false);
+
+        std::string funcName = mangleFunction("Print", argTypes);
+        llvm::Function *printStringFunc =
+            llvm::Function::Create(printStringFuncType,
+                llvm::Function::ExternalLinkage, funcName, TheModule.get());
+        printStringFunc->setDoesNotThrow();
+
+        // Print(string) implementation
+        llvm::BasicBlock *printIntBB =
+            llvm::BasicBlock::Create(*TheContext, "body", printStringFunc);
+        Builder->SetInsertPoint(printIntBB);
+        llvm::Function::arg_iterator args = printStringFunc->arg_begin();
+        llvm::Value *arg_x = args++;
+        llvm::Value *formatStr =
+            Builder->CreateGlobalStringPtr("%s", "formatStrString");
+        std::vector<llvm::Value *> printfArgs = {formatStr, arg_x};
+        Builder->CreateCall(printf_fn, printfArgs);
+        Builder->CreateRetVoid();
+    }
+    {  // Declare function Println(string)
+        std::vector<llvm::Type *> argTypes = {Builder->getInt8PtrTy()};
+        llvm::FunctionType *printStringFuncType =
+            llvm::FunctionType::get(Builder->getVoidTy(), argTypes, false);
+
+        std::string funcName = mangleFunction("Println", argTypes);
+        llvm::Function *printStringFunc =
+            llvm::Function::Create(printStringFuncType,
+                llvm::Function::ExternalLinkage, funcName, TheModule.get());
+        printStringFunc->setDoesNotThrow();
+
+        // Println(string) implementation
+        llvm::BasicBlock *printIntBB =
+            llvm::BasicBlock::Create(*TheContext, "body", printStringFunc);
+        Builder->SetInsertPoint(printIntBB);
+        llvm::Function::arg_iterator args = printStringFunc->arg_begin();
+        llvm::Value *arg_x = args++;
+        llvm::Value *formatStr =
+            Builder->CreateGlobalStringPtr("%s\n", "formatStrStringln");
+        std::vector<llvm::Value *> printfArgs = {formatStr, arg_x};
+        Builder->CreateCall(printf_fn, printfArgs);
+        Builder->CreateRetVoid();
+    }
 }
 
 void CodegenNodeVisitor::createExitFuncs() {
     auto i8p = Builder->getInt8PtrTy();
+    auto intType = Builder->getInt32Ty();
     auto exitWithError_prototype =
-        llvm::FunctionType::get(Builder->getVoidTy(), i8p, false);
+        llvm::FunctionType::get(Builder->getVoidTy(), {i8p, intType}, false);
     auto exitWithError_fn = llvm::Function::Create(exitWithError_prototype,
         llvm::Function::ExternalLinkage, "exitWithError", TheModule.get());
+}
+
+void CodegenNodeVisitor::createStrings() {
+    globalStrings.insert(
+        {"empty", Builder->CreateGlobalStringPtr("", "emptyString")});
+    globalStrings.insert(
+        {"outOfBounds", Builder->CreateGlobalStringPtr(
+                            "Index out of bounds: ", "outOfBounds")});
+    globalStrings.insert({"negativeIndex",
+        Builder->CreateGlobalStringPtr("Negative index: ", "negativeIndex")});
 }
 
 llvm::Value *CodegenNodeVisitor::Visit(Program *node) {
@@ -259,10 +377,16 @@ llvm::Value *CodegenNodeVisitor::Visit(VariableDeclaration *node) {
     llvm::Type *variableType;
     if (node->Type->Lexeme == "int") {
         variableType = llvm::Type::getInt32Ty(*TheContext);
+    } else if (node->Type->Lexeme == "long") {
+        variableType = llvm::Type::getInt64Ty(*TheContext);
     } else if (node->Type->Lexeme == "float") {
         variableType = llvm::Type::getFloatTy(*TheContext);
+    } else if (node->Type->Lexeme == "double") {
+        variableType = llvm::Type::getDoubleTy(*TheContext);
     } else if (node->Type->Lexeme == "bool") {
         variableType = llvm::Type::getInt1Ty(*TheContext);
+    } else if (node->Type->Lexeme == "string") {
+        variableType = llvm::Type::getInt8PtrTy(*TheContext);
     } else {
         return logError("Unsupported type for declaration");
     }
@@ -275,6 +399,8 @@ llvm::Value *CodegenNodeVisitor::Visit(VariableDeclaration *node) {
     if (node->Expr != nullptr) {
         llvm::Value *initialValue = node->Expr->Accept(this);
         Builder->CreateStore(initialValue, variable);
+    } else if (node->Type->Lexeme == "string") {
+        Builder->CreateStore(globalStrings.find("empty")->second, variable);
     } else {
         Builder->CreateStore(
             llvm::Constant::getNullValue(variableType), variable);
@@ -287,10 +413,16 @@ llvm::Value *CodegenNodeVisitor::Visit(ArrayDeclaration *node) {
     llvm::Type *variableType;
     if (node->Type->Lexeme == "int") {
         variableType = llvm::Type::getInt32Ty(*TheContext);
+    } else if (node->Type->Lexeme == "long") {
+        variableType = llvm::Type::getInt64Ty(*TheContext);
     } else if (node->Type->Lexeme == "float") {
         variableType = llvm::Type::getFloatTy(*TheContext);
+    } else if (node->Type->Lexeme == "double") {
+        variableType = llvm::Type::getDoubleTy(*TheContext);
     } else if (node->Type->Lexeme == "bool") {
         variableType = llvm::Type::getInt1Ty(*TheContext);
+    } else if (node->Type->Lexeme == "string") {
+        variableType = llvm::Type::getInt8PtrTy(*TheContext);
     } else {
         return logError("Unsupported type for declaration");
     }
@@ -313,8 +445,14 @@ llvm::Value *CodegenNodeVisitor::Visit(ArrayDeclaration *node) {
                 Builder->CreateInBoundsGEP(variablePtrType, variable,
                     llvm::ConstantInt::getSigned(intType, i),
                     "arrayElem" + std::to_string(i) + "_");
-            auto store = Builder->CreateStore(
-                llvm::Constant::getNullValue(variableType), arrayElementPtr);
+            if (node->Type->Lexeme == "string") {
+                auto store = Builder->CreateStore(
+                    globalStrings.find("empty")->second, arrayElementPtr);
+            } else {
+                auto store = Builder->CreateStore(
+                    llvm::Constant::getNullValue(variableType),
+                    arrayElementPtr);
+            }
         }
     }
 
@@ -379,13 +517,11 @@ llvm::Value *CodegenNodeVisitor::createInBoundsCheck(
 
     Builder->SetInsertPoint(outOfBoundsBB);
 
-    llvm::Value *outOfBoundsMsg =
-        Builder->CreateGlobalStringPtr("Index out of bounds\n");
+    llvm::Value *outOfBoundsMsg = globalStrings.find("outOfBounds")->second;
 
     llvm::Function *exitWithError_fn = TheModule->getFunction("exitWithError");
     llvm::Function *printint = TheModule->getFunction("PrintInt");
-    Builder->CreateCall(printint, index);
-    Builder->CreateCall(exitWithError_fn, outOfBoundsMsg);
+    Builder->CreateCall(exitWithError_fn, {outOfBoundsMsg, index});
     Builder->CreateUnreachable();
 
     func->getBasicBlockList().push_back(inBoundsBB);
@@ -403,10 +539,9 @@ llvm::Value *CodegenNodeVisitor::createInBoundsCheck(
 
     Builder->SetInsertPoint(negativeIndexBB);
 
-    llvm::Value *negativeIndexMsg =
-        Builder->CreateGlobalStringPtr("Negative index\n");
+    llvm::Value *negativeIndexMsg = globalStrings.find("negativeIndex")->second;
 
-    Builder->CreateCall(exitWithError_fn, negativeIndexMsg);
+    Builder->CreateCall(exitWithError_fn, {negativeIndexMsg, index});
     Builder->CreateUnreachable();
 
     func->getBasicBlockList().push_back(validIndexBB);
@@ -428,6 +563,9 @@ llvm::Value *CodegenNodeVisitor::Visit(Constant *node) {
         return llvm::ConstantInt::get(llvm::Type::getInt1Ty(*TheContext), 1);
     } else if (node->Tok->Type == TokenEnum::False) {
         return llvm::ConstantInt::get(llvm::Type::getInt1Ty(*TheContext), 0);
+    } else if (node->Tok->Type == TokenEnum::String) {
+        auto str = std::static_pointer_cast<String>(node->Tok);
+        return Builder->CreateGlobalStringPtr(str->Literal);
     }
 
     return logError("Unsupported constant");
@@ -560,8 +698,18 @@ std::string getTypeString(llvm::Type *type) {
 }
 
 llvm::Value *CodegenNodeVisitor::Visit(FuncStmt *node) {
+    std::vector<llvm::Type *> argTypes;
+    for (auto &type : node->Arguments) {
+        argTypes.push_back(getBasicType(type.first));
+    }
+
+    std::string funcName = node->Name;
+    if (funcName != "main") {
+        funcName = mangleFunction(funcName, argTypes);
+    }
+
     {
-        llvm::Function *f = TheModule->getFunction(node->Name);
+        llvm::Function *f = TheModule->getFunction(funcName);
         if (f != nullptr) {
             return logError("Function cannot be redeclared");
         }
@@ -569,13 +717,8 @@ llvm::Value *CodegenNodeVisitor::Visit(FuncStmt *node) {
 
     scope->NewScope();
 
-    std::vector<llvm::Type *> argTypes;
-    for (auto &type : node->Arguments) {
-        argTypes.push_back(getBasicType(type.first));
-    }
-
     llvm::Type *returnType;
-    if (node->Name == "main") {
+    if (funcName == "main") {
         node->ReturnType = std::make_unique<std::string>("int");
     }
     if (node->ReturnType != nullptr) {
@@ -588,7 +731,7 @@ llvm::Value *CodegenNodeVisitor::Visit(FuncStmt *node) {
         llvm::FunctionType::get(returnType, argTypes, false);
 
     llvm::Function *func = llvm::Function::Create(
-        funcType, llvm::Function::ExternalLinkage, node->Name, TheModule.get());
+        funcType, llvm::Function::ExternalLinkage, funcName, TheModule.get());
 
     unsigned i = 0;
     for (auto &Arg : func->args()) {
@@ -609,7 +752,7 @@ llvm::Value *CodegenNodeVisitor::Visit(FuncStmt *node) {
 
     node->Block->Accept(this);
 
-    if (node->Name == "main") {
+    if (funcName == "main") {
         // auto alloca = NamedValues.find("z")->second;
         // auto ret = Builder->CreateLoad(alloca->getAllocatedType(), alloca,
         // "z"); Builder->CreateRet(ret);
@@ -627,7 +770,7 @@ llvm::Value *CodegenNodeVisitor::Visit(FuncStmt *node) {
     llvm::raw_string_ostream error_stream(error_str);
     if (llvm::verifyFunction(*func, &error_stream)) {
         std::string msg =
-            "Error: Verification of the function " + node->Name + " failed!\n";
+            "Error: Verification of the function " + funcName + " failed!\n";
         error_stream.flush();
         msg += error_str;
         logError(msg);
@@ -667,21 +810,31 @@ llvm::Value *CodegenNodeVisitor::Visit(ReturnStmt *node) {
 }
 
 llvm::Value *CodegenNodeVisitor::Visit(Call *node) {
-    llvm::Function *func = TheModule->getFunction(node->FuncName);
-    if (func == nullptr) {
-        return logError("Unknown function referenced");
-    }
-
-    if (func->arg_size() != node->Args.size()) {
-        return logError("Incorrect # arguments passed");
-    }
-
     std::vector<llvm::Value *> argVals;
+    std::vector<llvm::Type *> argTypes;
     for (unsigned i = 0, e = node->Args.size(); i != e; ++i) {
         argVals.push_back(node->Args[i]->Accept(this));
         if (argVals.back() == nullptr) {
             return logError("Invalid arguments in the func call");
         }
+        argTypes.push_back(argVals.back()->getType());
+    }
+
+    std::string funcName = node->FuncName;
+    if (funcName != "printf") {
+        funcName = mangleFunction(funcName, argTypes);
+    }
+
+    llvm::Function *func = TheModule->getFunction(funcName);
+    if (func == nullptr) {
+        return logError("Unknown function referenced :" + node->FuncName);
+    }
+
+    if (func->arg_size() > node->Args.size() && !func->isVarArg()) {
+        return logError("Incorrect number of arguments passed. For " +
+                        node->FuncName +
+                        ". Got: " + std::to_string(node->Args.size()) +
+                        " Expected: " + std::to_string(func->arg_size()));
     }
 
     return Builder->CreateCall(func, argVals);
@@ -710,6 +863,18 @@ llvm::AllocaInst *CodegenNodeVisitor::createEntryBlockAlloca(
     return TmpB.CreateAlloca(type, arraySize, varName);
 }
 
+std::string CodegenNodeVisitor::mangleFunction(
+    std::string name, std::vector<llvm::Type *> args) {
+    std::string typesStr;
+    llvm::raw_string_ostream stream(typesStr);
+    for (auto &arg : args) {
+        arg->print(stream);
+        stream << "_";
+    }
+    stream.flush();
+    return name + "__" + typesStr;
+}
+
 llvm::Type *CodegenNodeVisitor::getBasicType(std::string type) {
     if (type == "int") {
         return llvm::Type::getInt32Ty(*TheContext);
@@ -717,6 +882,8 @@ llvm::Type *CodegenNodeVisitor::getBasicType(std::string type) {
         return llvm::Type::getFloatTy(*TheContext);
     } else if (type == "bool") {
         return llvm::Type::getInt1Ty(*TheContext);
+    } else if (type == "string") {
+        return llvm::Type::getInt8PtrTy(*TheContext);
     } else {
         logError("Unsupported arg type: " + type);
         return nullptr;
@@ -725,6 +892,7 @@ llvm::Type *CodegenNodeVisitor::getBasicType(std::string type) {
 
 llvm::Value *CodegenNodeVisitor::logError(std::string msg) {
     errors << msg << std::endl;
+    std::cerr << msg << std::endl;
     return nullptr;
 }
 
@@ -749,6 +917,7 @@ int CodegenNodeVisitor::Compile(Program *prog, std::string fileName) {
 
     if (errors.str() != "") {
         llvm::errs() << "\n" << errors.str() << "\n";
+        return 1;
     }
 
     llvm::InitializeAllTargetInfos();

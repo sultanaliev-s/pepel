@@ -11,6 +11,7 @@
 
 #include "Number.hpp"
 #include "RealNum.hpp"
+#include "String.hpp"
 #include "Token.hpp"
 #include "TokenEnum.hpp"
 #include "Word.hpp"

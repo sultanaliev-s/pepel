@@ -7,6 +7,7 @@ enum class TokenEnum {
     ID,
     Num,
     Real,
+    String,
     EndOfFile,
 
     // Punctuation
@@ -62,6 +63,8 @@ inline std::string TokenEnumToString(TokenEnum e) {
         return "Number";
     case TokenEnum::Real:
         return "Real";
+    case TokenEnum::String:
+        return "String";
     case TokenEnum::LParen:
         return "Left Parenthesis";
     case TokenEnum::RParen:

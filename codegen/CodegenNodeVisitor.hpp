@@ -27,6 +27,7 @@
 #include "../ast/Unary.hpp"
 #include "../ast/VariableDeclaration.hpp"
 #include "../lexer/RealNum.hpp"
+#include "../lexer/String.hpp"
 #include "Env.hpp"
 #include "NodeVisitor.hpp"
 #include "llvm/ADT/APFloat.h"
@@ -58,6 +59,7 @@ class CodegenNodeVisitor : public NodeVisitor {
     std::stack<llvm::BasicBlock *> loopStack;
     std::unique_ptr<Scope> scope;
     std::ostringstream errors;
+    std::map<std::string, llvm::Value *> globalStrings;
 
    public:
     CodegenNodeVisitor();
@@ -102,4 +104,7 @@ class CodegenNodeVisitor : public NodeVisitor {
         VariableDetails *varDetails, llvm::Value *index);
     void createPrintFuncs();
     void createExitFuncs();
+    void createStrings();
+    std::string mangleFunction(
+        std::string name, std::vector<llvm::Type *> args);
 };

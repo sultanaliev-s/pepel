@@ -1,10 +1,5 @@
 #include "Parser.hpp"
 
-void error(std::string message) {
-    std::cout << message << std::endl;
-    std::abort();
-}
-
 Parser::Parser(std::shared_ptr<Lexer> _lexer)
     : lexer(_lexer), curToken(nullptr), nextToken(nullptr) {
     next();
@@ -40,7 +35,7 @@ bool Parser::isMatching(TokenEnum token) {
 
 void Parser::error(std::string message) {
     std::cerr << message << std::endl;
-    std::abort();
+    exit(1);
 }
 
 std::unique_ptr<Program> Parser::program() {
@@ -429,6 +424,10 @@ std::unique_ptr<Expression> Parser::factor() {
         x = std::make_unique<Constant>(curToken);
         next();
         return std::move(x);
+    case TokenEnum::String:
+        x = std::make_unique<Constant>(curToken);
+        next();
+        return std::move(x);
     case TokenEnum::ID:
         if (nextToken->Type == TokenEnum::LParen) {
             return call();
@@ -490,6 +489,7 @@ void Parser::registerBasicTypes() {
     basicTypes.insert({"float", true});
     basicTypes.insert({"double", true});
     basicTypes.insert({"bool", true});
+    basicTypes.insert({"string", true});
 }
 void Parser::registerKeywords() {
     keywords.insert({"if", true});
