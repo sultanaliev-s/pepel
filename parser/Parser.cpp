@@ -380,7 +380,8 @@ std::unique_ptr<Expression> Parser::arith() {
 std::unique_ptr<Expression> Parser::term() {
     auto x = unary();
     while (curToken->Type == TokenEnum::Asterisk ||
-           curToken->Type == TokenEnum::Slash) {
+           curToken->Type == TokenEnum::Slash ||
+           curToken->Type == TokenEnum::Percent) {
         auto tok = curToken;
         next();
         x = std::make_unique<Arithmetic>(tok, std::move(x), unary());

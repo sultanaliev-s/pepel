@@ -150,32 +150,39 @@ std::shared_ptr<Token> Lexer::scan() {
             return std::make_shared<Word>("=", TokenEnum::Assign);
         }
     case '+':
-        if (peek == '+') {
+        if (peek == '=') {
             readChar();
             return std::make_shared<Word>("+=", TokenEnum::AddAssignment);
         } else {
             return std::make_shared<Word>("+", TokenEnum::Plus);
         }
     case '-':
-        if (peek == '-') {
+        if (peek == '=') {
             readChar();
             return std::make_shared<Word>("-=", TokenEnum::SubAssignment);
         } else {
             return std::make_shared<Word>("-", TokenEnum::Minus);
         }
     case '*':
-        if (peek == '*') {
+        if (peek == '=') {
             readChar();
             return std::make_shared<Word>("*=", TokenEnum::MulAssignment);
         } else {
             return std::make_shared<Word>("*", TokenEnum::Asterisk);
         }
     case '/':
-        if (peek == '/') {
+        if (peek == '=') {
             readChar();
             return std::make_shared<Word>("/=", TokenEnum::DivAssignment);
         } else {
             return std::make_shared<Word>("/", TokenEnum::Slash);
+        }
+    case '%':
+        if (peek == '=') {
+            readChar();
+            return std::make_shared<Word>("/=", TokenEnum::RemAssignment);
+        } else {
+            return std::make_shared<Word>("/", TokenEnum::Percent);
         }
     case '>':
         if (peek == '=') {

@@ -338,6 +338,8 @@ llvm::Value *CodegenNodeVisitor::intArithmetic(
         return Builder->CreateMul(l, r, "multmp");
     case TokenEnum::Slash:
         return Builder->CreateExactSDiv(l, r, "divtmp");
+    case TokenEnum::Percent:
+        return Builder->CreateSRem(l, r, "remtmp");
     default:
         return logError("Invalid binary operator");
     }

@@ -42,6 +42,8 @@ enum class TokenEnum {
     SubAssignment,
     MulAssignment,
     DivAssignment,
+    RemAssignment,
+    Percent,
 
     // Keywords
     Else,
